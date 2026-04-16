@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hedefler — flow.</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { background: var(--bg); color: var(--text-color); overflow: hidden; height: 100vh; }
+        .goals-page { margin-top: 56px; }
+        .top-nav { top: 0; position: fixed; }
+    </style>
+</head>
+<body>
+<nav class="top-nav">
+    <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
+    <div class="nav-links">
+        <a class="nav-link" href="index.html"     id="nav-board">Board</a>
+        <a class="nav-link" href="weekly.html"    id="nav-weekly">Haftalık</a>
+        <a class="nav-link" href="dashboard.html" id="nav-dashboard">Dashboard</a>
+        <a class="nav-link" href="monthly.html"   id="nav-monthly">Aylık</a>
+        <a class="nav-link" href="habits.html"    id="nav-habits">Alışkanlıklar</a>
+        <a class="nav-link" href="cashflow.html"  id="nav-cashflow">Cashflow</a>
+        <a class="nav-link" href="notes.html"     id="nav-notes">Notlar</a>
+        <a class="nav-link" href="timer.html"     id="nav-timer">Timer</a>
+        <a class="nav-link" href="journal.html"   id="nav-journal">Günlük</a>
+        <a class="nav-link active" href="goals.html" id="nav-goals">Hedefler</a>
+    </div>
+    <div style="display:flex;align-items:center;-webkit-app-region:no-drag;">
+        <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
+        <div class="win-controls">
+            <button class="win-btn" onclick="window.flowAPI.windowMinimize()" id="win-min">&#8212;</button>
+            <button class="win-btn" onclick="window.flowAPI.windowMaximize()" id="win-max">&#9633;</button>
+            <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" id="win-close">&#10005;</button>
+        </div>
+    </div>
+</nav>
+
+<div class="goals-page">
+    <div class="goals-header">
+        <div class="goals-page-title" id="pg-title">HEDEFLER</div>
+        <div style="display:flex;gap:12px;align-items:center;">
+            <div class="goals-filter" id="filter-btns">
+                <button class="goals-filter-btn active" data-filter="all"       onclick="setFilter('all')">Tümü</button>
+                <button class="goals-filter-btn"        data-filter="active"    onclick="setFilter('active')">Aktif</button>
+                <button class="goals-filter-btn"        data-filter="completed" onclick="setFilter('completed')">Tamamlandı</button>
+                <button class="goals-filter-btn"        data-filter="paused"    onclick="setFilter('paused')">Durduruldu</button>
+            </div>
+            <button class="primary-action-btn" id="btn-new-goal" onclick="openGoalModal(null)">+ Yeni Hedef</button>
+        </div>
+    </div>
+    <div class="goals-grid" id="goals-grid"></div>
+</div>
+
+<!-- Goal Modal -->
+<div id="goal-modal">
+    <div class="modal-box goal-modal-content">
+        <div class="modal-title" id="goal-modal-title">Yeni Hedef</div>
+        <div class="modal-field">
+            <div class="modal-label" id="lbl-goal-title">Başlık</div>
+            <input class="modal-input" id="gm-title" type="text" maxlength="120" placeholder="Hedef başlığı...">
+        </div>
+        <div class="modal-field">
+            <div class="modal-label" id="lbl-goal-desc">Açıklama</div>
+            <textarea class="modal-input" id="gm-desc" rows="2" placeholder="Kısa açıklama..."></textarea>
+        </div>
+        <div class="modal-field">
+            <div class="modal-label" id="lbl-goal-timeframe">Zaman Çerçevesi</div>
+            <input class="modal-input" id="gm-timeframe" type="text" maxlength="60" placeholder="ör. Q1 2025, Mart 2025...">
+        </div>
+        <div class="modal-field">
+            <div class="modal-label" id="lbl-goal-color">Renk</div>
+            <div class="goal-color-swatches" id="color-swatches"></div>
+        </div>
+        <div class="modal-field">
+            <div class="modal-label" id="lbl-goal-status">Durum</div>
+            <select class="modal-input goal-status-select" id="gm-status">
+                <option value="active">Aktif</option>
+                <option value="completed">Tamamlandı</option>
+                <option value="paused">Durduruldu</option>
+            </select>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn-cancel" onclick="closeGoalModal()">İptal</button>
+            <button class="modal-btn-confirm" id="btn-save-goal" onclick="saveGoal()">Kaydet</button>
+        </div>
+    </div>
+</div>
+
+<!-- KR Update Modal -->
+<div id="kr-update-modal">
+    <div class="modal-box kr-modal-content">
+        <div class="modal-title" id="kr-modal-title">Güncelle</div>
+        <div class="modal-field">
+            <div class="modal-label" id="lbl-kr-title">Anahtar Sonuç</div>
+            <input class="modal-input" id="krm-title" type="text" maxlength="120" placeholder="Başlık...">
+        </div>
+        <div class="modal-field">
+            <div style="display:flex;gap:12px;">
+                <div style="flex:1;">
+                    <div class="modal-label" id="lbl-kr-current">Mevcut</div>
+                    <input class="modal-input" id="krm-current" type="number" value="0" min="0">
+                </div>
+                <div style="flex:1;">
+                    <div class="modal-label" id="lbl-kr-target">Hedef</div>
+                    <input class="modal-input" id="krm-target" type="number" value="100" min="0">
+                </div>
+                <div style="flex:1;">
+                    <div class="modal-label" id="lbl-kr-unit">Birim</div>
+                    <input class="modal-input" id="krm-unit" type="text" value="%" maxlength="10" placeholder="%">
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn-cancel" onclick="closeKrModal()">İptal</button>
+            <button class="modal-btn-confirm" onclick="saveKr()">Kaydet</button>
+        </div>
+    </div>
+</div>
+
+<script src="i18n.js"></script>
+<script>
+'use strict'
+
+// ── i18n ──────────────────────────────────────────────────
+function applyI18n() {
+    const set = (id, key) => { const el = document.getElementById(id); if (el) el.textContent = t(key) }
+    set('nav-board','nav_board'); set('nav-weekly','nav_weekly')
+    set('nav-dashboard','nav_dashboard'); set('nav-monthly','nav_monthly')
+    set('nav-habits','nav_habits'); set('nav-cashflow','nav_cashflow')
+    set('nav-notes','nav_notes'); set('nav-timer','nav_timer')
+    set('nav-journal','nav_journal'); set('nav-goals','nav_goals')
+    set('lang-toggle','lang_switch')
+    document.getElementById('win-min').title   = t('win_minimize')
+    document.getElementById('win-max').title   = t('win_maximize')
+    document.getElementById('win-close').title = t('win_close')
+    set('pg-title','goals_title')
+    set('btn-new-goal','goals_new')
+    set('goal-modal-title','goals_modal_title')
+    set('lbl-goal-title','goals_modal_title')
+    set('lbl-goal-desc','goals_modal_desc')
+    set('lbl-goal-timeframe','goals_modal_timeframe')
+    set('lbl-goal-color','goals_modal_color')
+    set('lbl-goal-status','goals_modal_status')
+    set('btn-save-goal','goals_save_goal')
+    set('lbl-kr-title','goals_kr_title')
+    set('lbl-kr-current','goals_kr_current')
+    set('lbl-kr-target','goals_kr_target')
+    set('lbl-kr-unit','goals_kr_unit')
+    set('kr-modal-title','goals_kr_update')
+    // filter buttons
+    document.querySelector('[data-filter="all"]').textContent       = t('goals_timeframe_all')
+    document.querySelector('[data-filter="active"]').textContent    = t('goals_status_active')
+    document.querySelector('[data-filter="completed"]').textContent = t('goals_status_completed')
+    document.querySelector('[data-filter="paused"]').textContent    = t('goals_status_paused')
+    // status select
+    document.querySelector('#gm-status option[value=active]').textContent    = t('goals_status_active')
+    document.querySelector('#gm-status option[value=completed]').textContent = t('goals_status_completed')
+    document.querySelector('#gm-status option[value=paused]').textContent    = t('goals_status_paused')
+}
+
+// ── Palette ───────────────────────────────────────────────
+const COLORS = ['#2a3a5a','#2a5a3a','#5a2a3a','#5a4a2a','#4a2a5a','#1a4a5a','#5a5a2a','#5a2a2a']
+let selectedColor = COLORS[0]
+let editGoalId    = null
+let editKrGoalId  = null
+let editKrId      = null
+let currentFilter = 'all'
+let allGoals      = []
+const goalsMap    = {}
+
+function renderColorSwatches() {
+    document.getElementById('color-swatches').innerHTML = COLORS.map(c =>
+        `<div class="goal-color-swatch${c === selectedColor ? ' selected' : ''}"
+              style="background:${c}" onclick="pickColor('${c}')"></div>`
+    ).join('')
+}
+
+function pickColor(c) {
+    selectedColor = c
+    renderColorSwatches()
+}
+
+// ── Load ──────────────────────────────────────────────────
+async function loadGoals() {
+    allGoals = await window.flowAPI.getGoals()
+    allGoals.forEach(g => { goalsMap[g.id] = g })
+    renderGoals()
+}
+
+function setFilter(f) {
+    currentFilter = f
+    document.querySelectorAll('.goals-filter-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.filter === f))
+    renderGoals()
+}
+
+function calcProgress(goal) {
+    if (!goal.key_results || goal.key_results.length === 0) return 0
+    const total = goal.key_results.reduce((sum, kr) => {
+        const t = Number(kr.target) || 100
+        const c = Math.min(Number(kr.current) || 0, t)
+        return sum + (c / t) * 100
+    }, 0)
+    return Math.round(total / goal.key_results.length)
+}
+
+function renderGoals() {
+    const grid = document.getElementById('goals-grid')
+    const filtered = currentFilter === 'all' ? allGoals : allGoals.filter(g => g.status === currentFilter)
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `<div class="goal-empty">${t('goals_empty')}</div>`
+        return
+    }
+
+    grid.innerHTML = filtered.map(goal => {
+        const pct = calcProgress(goal)
+        const statusTxt = t(`goals_status_${goal.status}`) || goal.status
+        const krs = (goal.key_results || []).map(kr => {
+            const target  = Number(kr.target) || 100
+            const current = Math.min(Number(kr.current) || 0, target)
+            const krPct   = Math.round((current / target) * 100)
+            return `<div class="goal-kr-item" onclick="openKrModalById(${goal.id},${kr.id})">
+                <div class="goal-kr-title">${escHtml(kr.title)}</div>
+                <div class="goal-kr-progress">
+                    <span class="goal-kr-current">${current}/${target} ${escHtml(kr.unit||'')}</span>
+                    <div class="goal-kr-bar"><div class="goal-kr-bar-fill" style="width:${krPct}%"></div></div>
+                </div>
+                <button class="goal-kr-del" onclick="event.stopPropagation();deleteKr(${goal.id},${kr.id})" title="${t('goals_kr_del')}">✕</button>
+            </div>`
+        }).join('')
+
+        return `<div class="goal-card status-${goal.status}">
+            <div class="goal-card-accent" style="background:${escHtml(goal.color||'#2a3a5a')}"></div>
+            <div class="goal-card-header">
+                <div class="goal-card-title">${escHtml(goal.title)}</div>
+                <div class="goal-card-actions">
+                    <button class="goal-card-btn" onclick="openGoalModalById(${goal.id})" title="Düzenle">✎</button>
+                    <button class="goal-card-btn" onclick="deleteGoal(${goal.id})" title="${t('goals_del')}">✕</button>
+                </div>
+            </div>
+            <div class="goal-card-meta">
+                ${goal.timeframe ? `<span class="goal-card-timeframe">${escHtml(goal.timeframe)}</span>` : ''}
+                <span class="goal-card-status ${goal.status}">${statusTxt}</span>
+            </div>
+            ${goal.description ? `<div style="font-size:0.78rem;color:#2a2a2a;line-height:1.5;margin-bottom:14px;">${escHtml(goal.description)}</div>` : ''}
+            <div class="goal-progress-ring-wrap">
+                <div class="goal-progress-pct">${pct}%</div>
+                <div class="goal-progress-bar-wrap">
+                    <div class="goal-progress-bar-track">
+                        <div class="goal-progress-bar-fill" style="width:${pct}%;background:${escHtml(goal.color||'#333')}"></div>
+                    </div>
+                    <div class="goal-progress-label">${t('goals_progress')}</div>
+                </div>
+            </div>
+            <div class="goal-kr-list">${krs || `<div class="goal-empty" style="padding:10px 0;font-size:0.6rem;">${t('goals_no_kr')}</div>`}</div>
+            <div style="margin-top:12px;padding-top:10px;border-top:1px solid #0a0a0a;">
+                <button class="goal-add-kr-btn" onclick="openKrModal(${goal.id},null)">+ ${t('goals_add_kr')}</button>
+            </div>
+        </div>`
+    }).join('')
+}
+
+function openGoalModalById(id) { openGoalModal(goalsMap[id] || null) }
+function openKrModalById(goalId, krId) {
+    const goal = goalsMap[goalId]
+    openKrModal(goalId, goal?.key_results?.find(k => k.id === krId) || null)
+}
+
+// ── Goal Modal ────────────────────────────────────────────
+function openGoalModal(goal) {
+    editGoalId    = goal?.id ?? null
+    selectedColor = goal?.color ?? COLORS[0]
+    renderColorSwatches()
+    document.getElementById('gm-title').value     = goal?.title       ?? ''
+    document.getElementById('gm-desc').value      = goal?.description ?? ''
+    document.getElementById('gm-timeframe').value = goal?.timeframe   ?? ''
+    document.getElementById('gm-status').value    = goal?.status      ?? 'active'
+    document.getElementById('goal-modal-title').textContent = goal ? t('goals_modal_title') : t('goals_new')
+    document.getElementById('goal-modal').classList.add('visible')
+    document.getElementById('gm-title').focus()
+}
+
+function closeGoalModal() {
+    document.getElementById('goal-modal').classList.remove('visible')
+    editGoalId = null
+}
+
+async function saveGoal() {
+    const title = document.getElementById('gm-title').value.trim()
+    if (!title) { document.getElementById('gm-title').focus(); return }
+    const goal = {
+        title,
+        description: document.getElementById('gm-desc').value.trim(),
+        timeframe:   document.getElementById('gm-timeframe').value.trim(),
+        color:       selectedColor,
+        status:      document.getElementById('gm-status').value,
+    }
+    if (editGoalId != null) goal.id = editGoalId
+    await window.flowAPI.saveGoal(goal)
+    closeGoalModal()
+    loadGoals()
+}
+
+// ── KR Modal ──────────────────────────────────────────────
+function openKrModal(goalId, kr) {
+    editKrGoalId = goalId
+    editKrId     = kr?.id ?? null
+    document.getElementById('krm-title').value   = kr?.title   ?? ''
+    document.getElementById('krm-current').value = kr?.current ?? 0
+    document.getElementById('krm-target').value  = kr?.target  ?? 100
+    document.getElementById('krm-unit').value    = kr?.unit    ?? '%'
+    document.getElementById('kr-update-modal').classList.add('visible')
+    document.getElementById('krm-title').focus()
+}
+
+function closeKrModal() {
+    document.getElementById('kr-update-modal').classList.remove('visible')
+    editKrGoalId = null; editKrId = null
+}
+
+async function saveKr() {
+    const title = document.getElementById('krm-title').value.trim()
+    if (!title) { document.getElementById('krm-title').focus(); return }
+    const kr = {
+        title,
+        current: Number(document.getElementById('krm-current').value) || 0,
+        target:  Number(document.getElementById('krm-target').value)  || 100,
+        unit:    document.getElementById('krm-unit').value.trim() || '%',
+    }
+    if (editKrId != null) kr.id = editKrId
+    await window.flowAPI.saveKeyResult(editKrGoalId, kr)
+    closeKrModal()
+    loadGoals()
+}
+
+// ── Delete ────────────────────────────────────────────────
+async function deleteGoal(id) {
+    if (!confirm(t('goals_del'))) return
+    await window.flowAPI.deleteGoal(id)
+    loadGoals()
+}
+
+async function deleteKr(goalId, krId) {
+    await window.flowAPI.deleteKeyResult(goalId, krId)
+    loadGoals()
+}
+
+// ── Keyboard ──────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeGoalModal(); closeKrModal() }
+    if (e.key === 'Enter' && document.getElementById('goal-modal').classList.contains('visible') &&
+        document.activeElement.tagName !== 'TEXTAREA') saveGoal()
+    if (e.key === 'Enter' && document.getElementById('kr-update-modal').classList.contains('visible')) saveKr()
+})
+
+// Close on backdrop click
+document.getElementById('goal-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('goal-modal')) closeGoalModal()
+})
+document.getElementById('kr-update-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('kr-update-modal')) closeKrModal()
+})
+
+// ── XSS ───────────────────────────────────────────────────
+function escHtml(s) {
+    if (s == null) return ''
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+// ── Init ──────────────────────────────────────────────────
+applyI18n()
+renderColorSwatches()
+loadGoals()
+</script>
+</body>
+</html>

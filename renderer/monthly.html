@@ -146,8 +146,15 @@
     <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
     <div class="nav-links">
         <a class="nav-link" href="index.html" id="nav-board">Board</a>
+        <a class="nav-link" href="weekly.html" id="nav-weekly">Haftalık</a>
         <a class="nav-link" href="dashboard.html" id="nav-dashboard">Dashboard</a>
         <a class="nav-link active" href="monthly.html" id="nav-monthly">Aylık</a>
+        <a class="nav-link" href="habits.html" id="nav-habits">Alışkanlıklar</a>
+        <a class="nav-link" href="cashflow.html" id="nav-cashflow">Cashflow</a>
+        <a class="nav-link" href="notes.html" id="nav-notes">Notlar</a>
+        <a class="nav-link" href="timer.html"   id="nav-timer">Timer</a>
+        <a class="nav-link" href="journal.html" id="nav-journal">Günlük</a>
+        <a class="nav-link" href="goals.html"   id="nav-goals">Hedefler</a>
     </div>
     <div style="display:flex;align-items:center;-webkit-app-region:no-drag;">
         <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
@@ -217,9 +224,15 @@
     // ── i18n init ────────────────────────────────────────
     function applyI18n() {
         document.getElementById('nav-board').textContent       = t('nav_board')
+        document.getElementById('nav-weekly').textContent      = t('nav_weekly')
         document.getElementById('nav-dashboard').textContent   = t('nav_dashboard')
         document.getElementById('nav-monthly').textContent     = t('nav_monthly')
-        document.getElementById('lang-toggle').textContent     = t('lang_switch')
+        document.getElementById('nav-habits').textContent      = t('nav_habits')
+        document.getElementById('nav-cashflow').textContent     = t('nav_cashflow')
+        document.getElementById('nav-notes').textContent        = t('nav_notes')
+        document.getElementById('nav-timer').textContent        = t('nav_timer')
+        document.getElementById('nav-journal').textContent      = t('nav_journal')
+        document.getElementById('nav-goals').textContent        = t('nav_goals')
         document.getElementById('win-min').title               = t('win_minimize')
         document.getElementById('win-max').title               = t('win_maximize')
         document.getElementById('win-close').title             = t('win_close')

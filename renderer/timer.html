@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timer — flow.</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { background: var(--bg); color: var(--text-color); overflow: hidden; height: 100vh; }
+        .top-nav { top: 0; position: fixed; }
+        .timer-layout { margin-top: 56px; }
+    </style>
+</head>
+<body>
+<nav class="top-nav">
+    <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
+    <div class="nav-links">
+        <a class="nav-link" href="index.html"     id="nav-board">Board</a>
+        <a class="nav-link" href="weekly.html"    id="nav-weekly">Haftalık</a>
+        <a class="nav-link" href="dashboard.html" id="nav-dashboard">Dashboard</a>
+        <a class="nav-link" href="monthly.html"   id="nav-monthly">Aylık</a>
+        <a class="nav-link" href="habits.html"    id="nav-habits">Alışkanlıklar</a>
+        <a class="nav-link" href="cashflow.html"  id="nav-cashflow">Cashflow</a>
+        <a class="nav-link" href="notes.html"     id="nav-notes">Notlar</a>
+        <a class="nav-link active" href="timer.html" id="nav-timer">Timer</a>
+        <a class="nav-link" href="journal.html"   id="nav-journal">Günlük</a>
+        <a class="nav-link" href="goals.html"     id="nav-goals">Hedefler</a>
+    </div>
+    <div style="display:flex;align-items:center;-webkit-app-region:no-drag;">
+        <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
+        <div class="win-controls">
+            <button class="win-btn" onclick="window.flowAPI.windowMinimize()" id="win-min">&#8212;</button>
+            <button class="win-btn" onclick="window.flowAPI.windowMaximize()" id="win-max">&#9633;</button>
+            <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" id="win-close">&#10005;</button>
+        </div>
+    </div>
+</nav>
+
+<div class="timer-layout">
+    <!-- Main timer area -->
+    <div class="timer-main">
+        <div class="timer-page-title" id="pg-title">POMODORO</div>
+
+        <!-- Mode tabs -->
+        <div class="timer-mode-tabs">
+            <button class="timer-tab active" id="tab-work"        onclick="switchMode('work')">Çalışma</button>
+            <button class="timer-tab"        id="tab-short_break" onclick="switchMode('short_break')">Kısa Mola</button>
+            <button class="timer-tab"        id="tab-long_break"  onclick="switchMode('long_break')">Uzun Mola</button>
+        </div>
+
+        <!-- Ring -->
+        <div class="timer-ring-wrap">
+            <svg class="timer-ring-svg" id="timer-svg" width="220" height="220" viewBox="0 0 220 220">
+                <circle class="timer-ring-bg"   cx="110" cy="110" r="100"/>
+                <circle class="timer-ring-prog work" id="timer-ring-prog"
+                        cx="110" cy="110" r="100"
+                        stroke-dasharray="628.3"
+                        stroke-dashoffset="0"/>
+            </svg>
+            <div class="timer-center">
+                <div class="timer-time" id="timer-display">25:00</div>
+                <div class="timer-mode-label" id="timer-mode-label">ÇALIŞMA</div>
+            </div>
+        </div>
+
+        <div class="timer-session-info">
+            <span id="timer-session-text">1 / 4 — uzun molaya kadar</span>
+        </div>
+
+        <!-- Controls -->
+        <div class="timer-controls">
+            <button class="timer-btn-ghost" id="btn-reset" onclick="resetTimer()">Sıfırla</button>
+            <button class="timer-btn-main"  id="btn-start" onclick="toggleTimer()">Başla</button>
+            <button class="timer-btn-ghost" id="btn-skip"  onclick="skipSession()">Atla</button>
+        </div>
+
+        <!-- Today stats -->
+        <div class="timer-today-stats">
+            <div class="timer-stat">
+                <div class="timer-stat-val" id="stat-sessions">0</div>
+                <div class="timer-stat-lbl" id="stat-sessions-lbl">Bugün</div>
+            </div>
+            <div class="timer-stat">
+                <div class="timer-stat-val" id="stat-minutes">0</div>
+                <div class="timer-stat-lbl" id="stat-minutes-lbl">dk odak</div>
+            </div>
+            <div class="timer-stat">
+                <div class="timer-stat-val" id="stat-hr">0.0</div>
+                <div class="timer-stat-lbl" id="stat-hr-lbl">saat</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="timer-sidebar">
+        <!-- Week chart -->
+        <div class="timer-sidebar-section">
+            <div class="timer-sidebar-title" id="lbl-week-chart">BU HAFTAKI SEANSLAR</div>
+            <div class="timer-week-bars" id="week-bars"></div>
+            <div style="display:flex;justify-content:space-between;" id="week-labels"></div>
+        </div>
+
+        <!-- Settings -->
+        <div class="timer-sidebar-section">
+            <div class="timer-sidebar-title" id="lbl-settings">AYARLAR</div>
+            <div class="timer-settings-form">
+                <div class="timer-setting-row">
+                    <span class="timer-setting-label" id="lbl-work-min">Çalışma (dk)</span>
+                    <input class="timer-setting-input" id="set-work" type="number" min="1" max="90" value="25" onchange="onSettingChange()">
+                </div>
+                <div class="timer-setting-row">
+                    <span class="timer-setting-label" id="lbl-short-min">Kısa Mola (dk)</span>
+                    <input class="timer-setting-input" id="set-short" type="number" min="1" max="30" value="5" onchange="onSettingChange()">
+                </div>
+                <div class="timer-setting-row">
+                    <span class="timer-setting-label" id="lbl-long-min">Uzun Mola (dk)</span>
+                    <input class="timer-setting-input" id="set-long" type="number" min="1" max="60" value="15" onchange="onSettingChange()">
+                </div>
+                <div class="timer-setting-row">
+                    <span class="timer-setting-label" id="lbl-sessions-before-long">Uzun mola aralığı</span>
+                    <input class="timer-setting-input" id="set-interval" type="number" min="2" max="8" value="4" style="width:40px" onchange="onSettingChange()">
+                </div>
+                <div class="timer-setting-row">
+                    <span class="timer-setting-label" id="lbl-auto-break">Molaya otomatik geç</span>
+                    <div class="timer-setting-toggle" id="toggle-auto" onclick="toggleSetting('auto')"></div>
+                </div>
+                <div class="timer-setting-row">
+                    <span class="timer-setting-label" id="lbl-sound">Ses uyarısı</span>
+                    <div class="timer-setting-toggle on" id="toggle-sound" onclick="toggleSetting('sound')"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="i18n.js"></script>
+<script>
+'use strict'
+
+// ── i18n ──────────────────────────────────────────────────
+function applyI18n() {
+    const set = (id, key) => { const el = document.getElementById(id); if (el) el.textContent = t(key) }
+    set('nav-board', 'nav_board'); set('nav-weekly', 'nav_weekly')
+    set('nav-dashboard', 'nav_dashboard'); set('nav-monthly', 'nav_monthly')
+    set('nav-habits', 'nav_habits'); set('nav-cashflow', 'nav_cashflow')
+    set('nav-notes', 'nav_notes'); set('nav-timer', 'nav_timer')
+    set('nav-journal', 'nav_journal'); set('nav-goals', 'nav_goals')
+    set('lang-toggle', 'lang_switch')
+    document.getElementById('win-min').title   = t('win_minimize')
+    document.getElementById('win-max').title   = t('win_maximize')
+    document.getElementById('win-close').title = t('win_close')
+    set('pg-title', 'timer_title')
+    set('tab-work', 'timer_work')
+    set('tab-short_break', 'timer_short_break')
+    set('tab-long_break', 'timer_long_break')
+    set('btn-reset', 'timer_reset')
+    set('btn-skip', 'timer_skip')
+    set('stat-sessions-lbl', 'timer_today_sessions')
+    set('stat-minutes-lbl', 'timer_today_minutes')
+    set('lbl-week-chart', 'timer_week_chart')
+    set('lbl-settings', 'timer_settings')
+    set('lbl-work-min', 'timer_work_min')
+    set('lbl-short-min', 'timer_short_min')
+    set('lbl-long-min', 'timer_long_min')
+    set('lbl-sessions-before-long', 'timer_sessions_before_long')
+    set('lbl-auto-break', 'timer_auto_break')
+    set('lbl-sound', 'timer_sound')
+}
+
+// ── Settings ──────────────────────────────────────────────
+const DEFAULTS = { work: 25, short: 5, long: 15, interval: 4, auto: false, sound: true }
+let settings = JSON.parse(localStorage.getItem('pomo-settings') || 'null') || { ...DEFAULTS }
+
+function saveSettings() { localStorage.setItem('pomo-settings', JSON.stringify(settings)) }
+
+function onSettingChange() {
+    if (timerRunning) return
+    settings.work     = parseInt(document.getElementById('set-work').value)    || 25
+    settings.short    = parseInt(document.getElementById('set-short').value)   || 5
+    settings.long     = parseInt(document.getElementById('set-long').value)    || 15
+    settings.interval = parseInt(document.getElementById('set-interval').value)|| 4
+    saveSettings()
+    resetTimer()
+}
+
+function toggleSetting(key) {
+    if (key === 'auto')  settings.auto  = !settings.auto
+    if (key === 'sound') settings.sound = !settings.sound
+    saveSettings()
+    document.getElementById(`toggle-${key}`).classList.toggle('on', settings[key])
+}
+
+function applySettingsToForm() {
+    document.getElementById('set-work').value     = settings.work
+    document.getElementById('set-short').value    = settings.short
+    document.getElementById('set-long').value     = settings.long
+    document.getElementById('set-interval').value = settings.interval
+    document.getElementById('toggle-auto').classList.toggle('on',  settings.auto)
+    document.getElementById('toggle-sound').classList.toggle('on', settings.sound)
+}
+
+// ── Timer state ───────────────────────────────────────────
+let mode          = 'work'    // 'work' | 'short_break' | 'long_break'
+let sessionCount  = 0         // completed work sessions today
+let remaining     = settings.work * 60
+let totalSec      = settings.work * 60
+let timerRunning  = false
+let timerInterval = null
+const CIRCUMFERENCE = 2 * Math.PI * 100  // r=100
+
+function modeDuration(m) {
+    if (m === 'work')        return settings.work  * 60
+    if (m === 'short_break') return settings.short * 60
+    return settings.long * 60
+}
+
+function modeLabel(m) {
+    if (m === 'work')        return t('timer_work').toUpperCase()
+    if (m === 'short_break') return t('timer_short_break').toUpperCase()
+    return t('timer_long_break').toUpperCase()
+}
+
+// ── Render ────────────────────────────────────────────────
+function fmtTime(sec) {
+    const m = Math.floor(sec / 60).toString().padStart(2, '0')
+    const s = (sec % 60).toString().padStart(2, '0')
+    return `${m}:${s}`
+}
+
+function renderTimer() {
+    document.getElementById('timer-display').textContent = fmtTime(remaining)
+    const prog = document.getElementById('timer-ring-prog')
+    const offset = CIRCUMFERENCE * (1 - remaining / totalSec)
+    prog.style.strokeDashoffset = offset
+    prog.className = `timer-ring-prog ${mode}`
+    document.getElementById('timer-mode-label').textContent = modeLabel(mode)
+    document.title = `${fmtTime(remaining)} — flow.`
+
+    // Session info
+    const workDone = sessionCount % settings.interval
+    const until    = settings.interval - workDone
+    document.getElementById('timer-session-text').textContent =
+        `${t('timer_session')} ${workDone + 1} ${t('timer_of')} ${settings.interval} — ${until > 1 ? until + ' ' + t('timer_until_long') : t('timer_long_break_soon')}`
+}
+
+function renderStartBtn() {
+    document.getElementById('btn-start').textContent = timerRunning ? t('timer_pause') : t('timer_start')
+}
+
+function renderTabs() {
+    ['work', 'short_break', 'long_break'].forEach(m => {
+        const btn = document.getElementById(`tab-${m}`)
+        btn.classList.toggle('active', m === mode)
+    })
+}
+
+// ── Controls ──────────────────────────────────────────────
+function toggleTimer() {
+    if (timerRunning) {
+        clearInterval(timerInterval)
+        timerRunning = false
+    } else {
+        timerInterval = setInterval(tick, 1000)
+        timerRunning  = true
+    }
+    renderStartBtn()
+}
+
+function resetTimer() {
+    clearInterval(timerInterval)
+    timerRunning = false
+    totalSec     = modeDuration(mode)
+    remaining    = totalSec
+    renderTimer()
+    renderStartBtn()
+}
+
+function switchMode(m) {
+    if (timerRunning) { clearInterval(timerInterval); timerRunning = false }
+    mode      = m
+    totalSec  = modeDuration(m)
+    remaining = totalSec
+    renderTimer()
+    renderTabs()
+    renderStartBtn()
+}
+
+function skipSession() {
+    clearInterval(timerInterval)
+    timerRunning = false
+    onSessionEnd(false)
+}
+
+// ── Tick ──────────────────────────────────────────────────
+function tick() {
+    remaining--
+    renderTimer()
+    if (remaining <= 0) {
+        clearInterval(timerInterval)
+        timerRunning = false
+        onSessionEnd(true)
+    }
+}
+
+async function onSessionEnd(completed) {
+    if (mode === 'work' && completed) {
+        sessionCount++
+        await window.flowAPI.addPomodoroSession({
+            date:         new Date().toISOString().slice(0, 10),
+            type:         'work',
+            duration_min: settings.work,
+            completed:    true,
+        })
+        loadDayStats()
+    }
+
+    if (settings.sound) playBeep()
+
+    // Auto-transition
+    const nextMode = determineNextMode()
+    mode     = nextMode
+    totalSec = modeDuration(nextMode)
+    remaining = totalSec
+    renderTimer()
+    renderTabs()
+    renderStartBtn()
+
+    if (settings.auto) {
+        timerInterval = setInterval(tick, 1000)
+        timerRunning  = true
+        renderStartBtn()
+    }
+}
+
+function determineNextMode() {
+    if (mode !== 'work') return 'work'
+    if (sessionCount > 0 && sessionCount % settings.interval === 0) return 'long_break'
+    return 'short_break'
+}
+
+// ── Beep ──────────────────────────────────────────────────
+function playBeep() {
+    try {
+        const ctx = new AudioContext()
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(880, ctx.currentTime)
+        gain.gain.setValueAtTime(0.3, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8)
+        osc.start(ctx.currentTime)
+        osc.stop(ctx.currentTime + 0.8)
+    } catch (_) {}
+}
+
+// ── Stats ─────────────────────────────────────────────────
+async function loadDayStats() {
+    const today = new Date().toISOString().slice(0, 10)
+    const stats = await window.flowAPI.getPomodoroDayStats(today)
+    document.getElementById('stat-sessions').textContent = stats.sessions
+    document.getElementById('stat-minutes').textContent  = stats.total_min
+    document.getElementById('stat-hr').textContent       = stats.total_hr.toFixed(1)
+}
+
+async function loadWeekStats() {
+    const days  = await window.flowAPI.getPomodoroWeekStats()
+    const maxSessions = Math.max(...days.map(d => d.sessions), 1)
+    const today = new Date().toISOString().slice(0, 10)
+    const dayNames = t('days_short')
+    // days comes as last 7 days, Mon–Sun. Map to short names by date
+    const barsEl   = document.getElementById('week-bars')
+    const labelsEl = document.getElementById('week-labels')
+    barsEl.innerHTML = days.map(d => {
+        const h = Math.round((d.sessions / maxSessions) * 46)
+        const isToday = d.date === today
+        return `<div class="timer-week-bar-wrap">
+            <div class="timer-week-bar${isToday ? ' today' : ''}" style="height:${h}px"></div>
+        </div>`
+    }).join('')
+    labelsEl.innerHTML = days.map(d => {
+        const isToday = d.date === today
+        const dayIdx = (new Date(d.date + 'T00:00:00').getDay() + 6) % 7 // Mon=0
+        return `<span class="timer-week-label${isToday ? ' today' : ''}" style="font-size:0.48rem;flex:1;text-align:center;">${dayNames[dayIdx]}</span>`
+    }).join('')
+}
+
+// ── Init ──────────────────────────────────────────────────
+applyI18n()
+applySettingsToForm()
+renderTimer()
+renderTabs()
+renderStartBtn()
+loadDayStats()
+loadWeekStats()
+</script>
+</body>
+</html>

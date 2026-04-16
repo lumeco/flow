@@ -6,16 +6,38 @@ const DB_PATH = path.join(app.getPath('userData'), 'flow.json')
 
 // ── Load / save ─────────────────────────────────────────────
 function load() {
-  if (!fs.existsSync(DB_PATH)) return { boards: [], tasks: [], habits: [], habit_logs: [], meta: { nextBoardId: 1, nextTaskId: 1, nextHabitId: 1 } }
+  if (!fs.existsSync(DB_PATH)) return {
+    boards: [], tasks: [], habits: [], habit_logs: [],
+    transactions: [], fixed_items: [], notes: [],
+    meta: { nextBoardId: 1, nextTaskId: 1, nextHabitId: 1, nextTxId: 1, nextFixedId: 1, nextNoteId: 1 }
+  }
   try {
     const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'))
-    // migrate older files that lack habits
-    if (!data.habits)     data.habits     = []
-    if (!data.habit_logs) data.habit_logs = []
-    if (!data.meta.nextHabitId) data.meta.nextHabitId = 1
+    if (!data.habits)       data.habits       = []
+    if (!data.habit_logs)   data.habit_logs   = []
+    if (!data.transactions) data.transactions = []
+    if (!data.fixed_items)  data.fixed_items  = []
+    if (!data.notes)        data.notes        = []
+    if (!data.pomo_sessions) data.pomo_sessions = []
+    if (!data.journal)      data.journal      = []
+    if (!data.goals)        data.goals        = []
+    if (!data.meta.nextHabitId)   data.meta.nextHabitId   = 1
+    if (!data.meta.nextTxId)      data.meta.nextTxId      = 1
+    if (!data.meta.nextFixedId)   data.meta.nextFixedId   = 1
+    if (!data.meta.nextNoteId)    data.meta.nextNoteId    = 1
+    if (!data.meta.nextPomoId)    data.meta.nextPomoId    = 1
+    if (!data.meta.nextJournalId) data.meta.nextJournalId = 1
+    if (!data.meta.nextGoalId)    data.meta.nextGoalId    = 1
+    if (!data.meta.nextKrId)      data.meta.nextKrId      = 1
     return data
   }
-  catch { return { boards: [], tasks: [], habits: [], habit_logs: [], meta: { nextBoardId: 1, nextTaskId: 1, nextHabitId: 1 } } }
+  catch { return {
+    boards: [], tasks: [], habits: [], habit_logs: [],
+    transactions: [], fixed_items: [], notes: [],
+    pomo_sessions: [], journal: [], goals: [],
+    meta: { nextBoardId: 1, nextTaskId: 1, nextHabitId: 1, nextTxId: 1, nextFixedId: 1,
+            nextNoteId: 1, nextPomoId: 1, nextJournalId: 1, nextGoalId: 1, nextKrId: 1 }
+  }}
 }
 
 function save(data) {
@@ -53,7 +75,8 @@ function saveTask(task) {
         status: task.status,
         order_index: task.order_index ?? 0,
         ...(task.deadline !== undefined ? { deadline: task.deadline } : {}),
-        ...(task.note      !== undefined ? { note:     task.note     } : {})
+        ...(task.note      !== undefined ? { note:     task.note     } : {}),
+        ...(task.priority  !== undefined ? { priority: task.priority } : {})
       }
       save(data)
       return data.tasks[idx]
@@ -69,6 +92,7 @@ function saveTask(task) {
     order_index: maxOrder + 1,
     deadline: task.deadline ?? null,
     note: task.note ?? null,
+    priority: task.priority ?? null,
     created_at: new Date().toISOString(),
     completed_at: null
   }
@@ -324,6 +348,7 @@ function updateTaskFull(taskId, fields) {
     if (fields.content  !== undefined) task.content  = fields.content
     if (fields.deadline !== undefined) task.deadline = fields.deadline
     if (fields.note     !== undefined) task.note     = fields.note
+    if (fields.priority !== undefined) task.priority = fields.priority
     save(data)
   }
   return task
@@ -357,6 +382,430 @@ function searchTasks(query) {
     .sort((a, b) => (b.boardDate || '').localeCompare(a.boardDate || ''))
     .slice(0, 60)
 }
+// ── Habit Streak ──────────────────────────────────────────────
+function getHabitStreak(habitId) {
+  const data = load()
+  const completedDates = data.habit_logs
+    .filter(l => l.habit_id === habitId && l.completed)
+    .map(l => l.date)
+    .sort((a, b) => b.localeCompare(a))
+
+  let best = 0, temp = 0, prev = null
+  for (const date of completedDates) {
+    if (!prev)                              { temp = 1 }
+    else if (daysBetween(date, prev) === 1) { temp++ }
+    else                                    { if (temp > best) best = temp; temp = 1 }
+    prev = date
+  }
+  if (temp > best) best = temp
+
+  const today     = todayStr()
+  const yesterday = offsetDate(today, -1)
+  let current = 0
+  if (completedDates.length > 0 && (completedDates[0] === today || completedDates[0] === yesterday)) {
+    let expect = completedDates[0]
+    for (const date of completedDates) {
+      if (date !== expect) break
+      current++
+      expect = offsetDate(date, -1)
+    }
+  }
+  return { current, best }
+}
+
+// ── Habit Monthly Data ──────────────────────────────────────
+function getHabitMonthlyData(habitId, year, month) {
+  const data   = load()
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+  const logs   = data.habit_logs.filter(l => l.habit_id === habitId && l.date.startsWith(prefix))
+  const dailyMap = {}
+  logs.forEach(l => { dailyMap[l.date] = l.completed })
+  const completedCount = Object.values(dailyMap).filter(Boolean).length
+  const daysInMonth    = new Date(year, month, 0).getDate()
+  return { dailyMap, completedCount, daysInMonth }
+}
+
+// ── Week Data ───────────────────────────────────────────────────
+function getWeekData(weekStartDate) {
+  const data = load()
+  const days = []
+  for (let i = 0; i < 7; i++) {
+    const date  = offsetDate(weekStartDate, i)
+    const board = data.boards.find(b => b.date === date)
+    const day   = { date, total: 0, done: 0, doing: 0, todo: 0, score: null }
+    if (board) {
+      const tasks = data.tasks.filter(t => t.board_id === board.id)
+      day.total   = tasks.length
+      day.done    = tasks.filter(t => t.status === 'done').length
+      day.doing   = tasks.filter(t => t.status === 'doing').length
+      day.todo    = tasks.filter(t => t.status === 'todo').length
+      day.score   = tasks.length ? Math.round((day.done / tasks.length) * 100) : null
+    }
+    days.push(day)
+  }
+  return days
+}
+
+// ── Export / Import ──────────────────────────────────────────────
+function exportData() {
+  return load()
+}
+
+function importData(newData) {
+  if (!newData || !Array.isArray(newData.boards) || !Array.isArray(newData.tasks) || !Array.isArray(newData.habits)) {
+    return { success: false, error: 'Invalid data structure' }
+  }
+  if (!newData.habit_logs) newData.habit_logs = []
+  if (!newData.meta)       newData.meta = { nextBoardId: 1, nextTaskId: 1, nextHabitId: 1 }
+  save(newData)
+  return { success: true }
+}
+// ── Cashflow — Transactions ───────────────────────────────────
+function getTransactions(year, month) {
+  const data = load()
+  return data.transactions
+    .filter(tx => {
+      const d = new Date(tx.date)
+      return d.getFullYear() === year && (d.getMonth() + 1) === month
+    })
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
+}
+
+function addTransaction(tx) {
+  const data = load()
+  const newTx = {
+    id:          data.meta.nextTxId++,
+    type:        tx.type,        // 'income' | 'expense'
+    amount:      Number(tx.amount),
+    category:    tx.category || 'Diğer',
+    description: tx.description || '',
+    date:        tx.date,
+    isFixed:     tx.isFixed || false
+  }
+  data.transactions.push(newTx)
+  save(data)
+  return newTx
+}
+
+function updateTransaction(id, fields) {
+  const data = load()
+  const tx = data.transactions.find(t => t.id === id)
+  if (!tx) return null
+  if (fields.amount      !== undefined) tx.amount      = Number(fields.amount)
+  if (fields.category    !== undefined) tx.category    = fields.category
+  if (fields.description !== undefined) tx.description = fields.description
+  if (fields.date        !== undefined) tx.date        = fields.date
+  if (fields.type        !== undefined) tx.type        = fields.type
+  save(data)
+  return tx
+}
+
+function deleteTransaction(id) {
+  const data = load()
+  data.transactions = data.transactions.filter(t => t.id !== id)
+  save(data)
+  return { success: true }
+}
+
+function getMonthlySummary(year, month) {
+  const txs = getTransactions(year, month)
+  const income  = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+
+  // By category breakdown
+  const byCat = {}
+  txs.forEach(t => {
+    if (!byCat[t.category]) byCat[t.category] = { income: 0, expense: 0 }
+    byCat[t.category][t.type] += t.amount
+  })
+
+  // Daily trend (for chart) — last day of month
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const daily = Array.from({ length: daysInMonth }, (_, i) => {
+    const d   = `${year}-${String(month).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`
+    const inc = txs.filter(t => t.date === d && t.type === 'income').reduce((s,t) => s+t.amount, 0)
+    const exp = txs.filter(t => t.date === d && t.type === 'expense').reduce((s,t) => s+t.amount, 0)
+    return { day: i + 1, income: inc, expense: exp }
+  })
+
+  return { income, expense, balance: income - expense, byCat, daily, txs }
+}
+
+function getAllTimeSummary() {
+  const data = load()
+  const txs  = data.transactions
+  const income  = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+
+  // Last 6 months
+  const now   = new Date()
+  const months = []
+  for (let i = 5; i >= 0; i--) {
+    const d   = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const y   = d.getFullYear()
+    const m   = d.getMonth() + 1
+    const inc = txs.filter(t => { const td = new Date(t.date); return td.getFullYear()===y && td.getMonth()+1===m && t.type==='income'  }).reduce((s,t)=>s+t.amount,0)
+    const exp = txs.filter(t => { const td = new Date(t.date); return td.getFullYear()===y && td.getMonth()+1===m && t.type==='expense' }).reduce((s,t)=>s+t.amount,0)
+    months.push({ year: y, month: m, income: inc, expense: exp, balance: inc - exp })
+  }
+  return { income, expense, balance: income - expense, months }
+}
+
+// ── Cashflow — Fixed Items (recurring) ───────────────────────
+function getFixedItems() {
+  const data = load()
+  return data.fixed_items || []
+}
+
+function saveFixedItem(item) {
+  const data = load()
+  if (item.id) {
+    const idx = data.fixed_items.findIndex(f => f.id === item.id)
+    if (idx !== -1) {
+      data.fixed_items[idx] = { ...data.fixed_items[idx], ...item }
+      save(data)
+      return data.fixed_items[idx]
+    }
+  }
+  const newItem = {
+    id:          data.meta.nextFixedId++,
+    type:        item.type,        // 'income' | 'expense'
+    amount:      Number(item.amount),
+    category:    item.category || 'Diğer',
+    description: item.description || '',
+    dayOfMonth:  item.dayOfMonth || 1,
+  }
+  data.fixed_items.push(newItem)
+  save(data)
+  return newItem
+}
+
+function deleteFixedItem(id) {
+  const data = load()
+  data.fixed_items = data.fixed_items.filter(f => f.id !== id)
+  save(data)
+  return { success: true }
+}
+
+// ── Notes ─────────────────────────────────────────────────────
+function getNotes() {
+  const data = load()
+  return (data.notes || []).sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+}
+
+function saveNote(note) {
+  const data = load()
+  const now  = new Date().toISOString()
+  if (note.id) {
+    const idx = data.notes.findIndex(n => n.id === note.id)
+    if (idx !== -1) {
+      data.notes[idx].title      = note.title !== undefined ? note.title : data.notes[idx].title
+      data.notes[idx].body       = note.body  !== undefined ? note.body  : data.notes[idx].body
+      data.notes[idx].updated_at = now
+      data.notes[idx].pinned     = note.pinned !== undefined ? note.pinned : data.notes[idx].pinned
+      save(data)
+      return data.notes[idx]
+    }
+  }
+  const newNote = {
+    id:         data.meta.nextNoteId++,
+    title:      note.title || '',
+    body:       note.body  || '',
+    pinned:     false,
+    color:      note.color || null,
+    created_at: now,
+    updated_at: now,
+  }
+  data.notes.push(newNote)
+  save(data)
+  return newNote
+}
+
+function deleteNote(id) {
+  const data = load()
+  data.notes = data.notes.filter(n => n.id !== id)
+  save(data)
+  return { success: true }
+}
+
+// ── Pomodoro Sessions ─────────────────────────────────────────
+function addPomodoroSession(session) {
+  const data = load()
+  if (!data.pomo_sessions) data.pomo_sessions = []
+  if (!data.meta.nextPomoId) data.meta.nextPomoId = 1
+  const now = new Date().toISOString()
+  const entry = {
+    id:           data.meta.nextPomoId++,
+    date:         session.date || now.slice(0, 10),
+    type:         session.type || 'work',     // 'work' | 'short_break' | 'long_break'
+    duration_min: session.duration_min || 25,
+    completed:    session.completed !== false,
+    created_at:   now,
+  }
+  data.pomo_sessions.push(entry)
+  save(data)
+  return entry
+}
+
+function getPomodoroDayStats(date) {
+  const data = load()
+  const sessions = (data.pomo_sessions || []).filter(s => s.date === date && s.completed)
+  const work  = sessions.filter(s => s.type === 'work')
+  const total_min = work.reduce((s, p) => s + p.duration_min, 0)
+  return {
+    sessions: work.length,
+    total_min,
+    total_hr: +(total_min / 60).toFixed(1),
+    sessions_list: sessions,
+  }
+}
+
+function getPomodoroWeekStats() {
+  const data = load()
+  const today = new Date()
+  const days  = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(today.getDate() - i)
+    const date = d.toISOString().slice(0, 10)
+    const sessions = (data.pomo_sessions || []).filter(s => s.date === date && s.type === 'work' && s.completed)
+    days.push({ date, sessions: sessions.length, total_min: sessions.reduce((a, s) => a + s.duration_min, 0) })
+  }
+  return days
+}
+
+// ── Journal ────────────────────────────────────────────────────
+function getJournalEntry(date) {
+  const data = load()
+  return (data.journal || []).find(j => j.date === date) || null
+}
+
+function getJournalMonth(year, month) {
+  const data = load()
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+  return (data.journal || []).filter(j => j.date.startsWith(prefix))
+}
+
+function saveJournalEntry(entry) {
+  const data = load()
+  if (!data.journal) data.journal = []
+  if (!data.meta.nextJournalId) data.meta.nextJournalId = 1
+  const now = new Date().toISOString()
+  const existing = data.journal.findIndex(j => j.date === entry.date)
+  if (existing !== -1) {
+    data.journal[existing] = {
+      ...data.journal[existing],
+      mood:        entry.mood        !== undefined ? entry.mood        : data.journal[existing].mood,
+      body:        entry.body        !== undefined ? entry.body        : data.journal[existing].body,
+      highlights:  entry.highlights  !== undefined ? entry.highlights  : data.journal[existing].highlights,
+      challenges:  entry.challenges  !== undefined ? entry.challenges  : data.journal[existing].challenges,
+      updated_at:  now,
+    }
+    save(data)
+    return data.journal[existing]
+  }
+  const newEntry = {
+    id:          data.meta.nextJournalId++,
+    date:        entry.date,
+    mood:        entry.mood || 3,
+    body:        entry.body || '',
+    highlights:  entry.highlights || '',
+    challenges:  entry.challenges || '',
+    created_at:  now,
+    updated_at:  now,
+  }
+  data.journal.push(newEntry)
+  save(data)
+  return newEntry
+}
+
+function deleteJournalEntry(date) {
+  const data = load()
+  data.journal = (data.journal || []).filter(j => j.date !== date)
+  save(data)
+  return { success: true }
+}
+
+// ── Goals / OKR ────────────────────────────────────────────────
+function getGoals() {
+  const data = load()
+  return (data.goals || []).sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+function saveGoal(goal) {
+  const data = load()
+  if (!data.goals) data.goals = []
+  if (!data.meta.nextGoalId) data.meta.nextGoalId = 1
+  if (!data.meta.nextKrId)   data.meta.nextKrId   = 1
+  const now = new Date().toISOString()
+  if (goal.id) {
+    const idx = data.goals.findIndex(g => g.id === goal.id)
+    if (idx !== -1) {
+      data.goals[idx] = { ...data.goals[idx], ...goal, updated_at: now }
+      save(data)
+      return data.goals[idx]
+    }
+  }
+  const newGoal = {
+    id:          data.meta.nextGoalId++,
+    title:       goal.title || '',
+    description: goal.description || '',
+    timeframe:   goal.timeframe || '',
+    color:       goal.color || '#2a2a5a',
+    status:      goal.status || 'active',   // 'active' | 'completed' | 'paused'
+    key_results: [],
+    created_at:  now,
+    updated_at:  now,
+  }
+  data.goals.push(newGoal)
+  save(data)
+  return newGoal
+}
+
+function deleteGoal(id) {
+  const data = load()
+  data.goals = (data.goals || []).filter(g => g.id !== id)
+  save(data)
+  return { success: true }
+}
+
+function saveKeyResult(goalId, kr) {
+  const data = load()
+  if (!data.meta.nextKrId) data.meta.nextKrId = 1
+  const goal = data.goals.find(g => g.id === goalId)
+  if (!goal) return null
+  if (!goal.key_results) goal.key_results = []
+  const now = new Date().toISOString()
+  if (kr.id) {
+    const idx = goal.key_results.findIndex(k => k.id === kr.id)
+    if (idx !== -1) {
+      goal.key_results[idx] = { ...goal.key_results[idx], ...kr, updated_at: now }
+      save(data)
+      return goal.key_results[idx]
+    }
+  }
+  const newKr = {
+    id:         data.meta.nextKrId++,
+    title:      kr.title || '',
+    target:     kr.target || 100,
+    current:    kr.current || 0,
+    unit:       kr.unit || '%',
+    created_at: now,
+    updated_at: now,
+  }
+  goal.key_results.push(newKr)
+  save(data)
+  return newKr
+}
+
+function deleteKeyResult(goalId, krId) {
+  const data = load()
+  const goal = (data.goals || []).find(g => g.id === goalId)
+  if (!goal) return { success: false }
+  goal.key_results = (goal.key_results || []).filter(k => k.id !== krId)
+  save(data)
+  return { success: true }
+}
 
 // ── Date helpers ─────────────────────────────────────────────
 function todayStr() {
@@ -364,7 +813,7 @@ function todayStr() {
 }
 
 function offsetDate(dateStr, days) {
-  const d = new Date(dateStr)
+  const d = new Date(dateStr + 'T12:00:00')
   d.setDate(d.getDate() + days)
   return d.toISOString().slice(0, 10)
 }
@@ -379,5 +828,18 @@ module.exports = {
   getOrCreateBoard, getTasks, saveTask, deleteTask, updateTaskStatus,
   getStreak, getBestDay, getCalendarData, getTrend, getMonthlyStats,
   reorderTask, updateTaskContent, updateTaskFull, getOverdueTasks, searchTasks,
-  getHabits, saveHabit, deleteHabit, getHabitLogs, toggleHabitLog
+  getHabits, saveHabit, deleteHabit, getHabitLogs, toggleHabitLog,
+  getHabitStreak, getHabitMonthlyData, getWeekData, exportData, importData,
+  // Cashflow
+  getTransactions, addTransaction, updateTransaction, deleteTransaction,
+  getMonthlySummary, getAllTimeSummary,
+  getFixedItems, saveFixedItem, deleteFixedItem,
+  // Notes
+  getNotes, saveNote, deleteNote,
+  // Pomodoro
+  addPomodoroSession, getPomodoroDayStats, getPomodoroWeekStats,
+  // Journal
+  getJournalEntry, getJournalMonth, saveJournalEntry, deleteJournalEntry,
+  // Goals
+  getGoals, saveGoal, deleteGoal, saveKeyResult, deleteKeyResult,
 }

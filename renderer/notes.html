@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notlar — flow.</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { background: var(--bg); color: var(--text-color); overflow: hidden; height: 100vh; }
+    </style>
+</head>
+<body>
+<nav class="top-nav">
+    <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
+    <div class="nav-links">
+        <a class="nav-link" href="index.html"     id="nav-board">Board</a>
+        <a class="nav-link" href="weekly.html"    id="nav-weekly">Haftalık</a>
+        <a class="nav-link" href="dashboard.html" id="nav-dashboard">Dashboard</a>
+        <a class="nav-link" href="monthly.html"   id="nav-monthly">Aylık</a>
+        <a class="nav-link" href="habits.html"    id="nav-habits">Alışkanlıklar</a>
+        <a class="nav-link" href="cashflow.html"  id="nav-cashflow">Cashflow</a>
+        <a class="nav-link active" href="notes.html" id="nav-notes">Notlar</a>
+        <a class="nav-link" href="timer.html"         id="nav-timer">Timer</a>
+        <a class="nav-link" href="journal.html"       id="nav-journal">Günlük</a>
+        <a class="nav-link" href="goals.html"         id="nav-goals">Hedefler</a>
+    </div>
+    <div style="display:flex;align-items:center;-webkit-app-region:no-drag;">
+        <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
+        <div class="win-controls">
+            <button class="win-btn" onclick="window.flowAPI.windowMinimize()" id="win-min">&#8212;</button>
+            <button class="win-btn" onclick="window.flowAPI.windowMaximize()" id="win-max">&#9633;</button>
+            <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" id="win-close">&#10005;</button>
+        </div>
+    </div>
+</nav>
+
+<div class="notes-layout">
+    <!-- Sidebar -->
+    <div class="notes-sidebar">
+        <div class="notes-sidebar-header">
+            <div class="notes-sidebar-title" id="notes-sidebar-title">NOTLAR</div>
+            <input class="notes-search-input" id="notes-search" type="text" placeholder="Notlarda ara...">
+        </div>
+        <button class="notes-new-btn" id="notes-new-btn" onclick="createNote()">+ Yeni Not</button>
+        <div class="notes-list" id="notes-list"></div>
+    </div>
+
+    <!-- Editor -->
+    <div class="notes-editor" id="notes-editor">
+        <div class="notes-editor-empty" id="editor-empty">
+            <span id="editor-empty-text">Not seçin veya yeni bir tane oluşturun.</span>
+        </div>
+
+        <!-- Active editor (hidden until a note is selected) -->
+        <div id="editor-active" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+            <div class="notes-editor-toolbar">
+                <div class="notes-toolbar-left">
+                    <div class="notes-saved-label" id="notes-saved-lbl"></div>
+                </div>
+                <div class="notes-toolbar-right">
+                    <button class="notes-pin-btn" id="notes-pin-btn" onclick="togglePin()">Sabitle</button>
+                    <button class="note-del-btn"  id="notes-del-btn" onclick="deleteCurrentNote()">✕</button>
+                </div>
+            </div>
+            <input class="note-title-input" id="note-title" type="text" placeholder="Başlık...">
+            <textarea class="note-body-textarea" id="note-body" placeholder="Notunu buraya yaz..."></textarea>
+        </div>
+    </div>
+</div>
+
+<script src="i18n.js"></script>
+<script>
+'use strict'
+
+// ── i18n ──────────────────────────────────────────────────
+function applyI18n() {
+    document.getElementById('nav-board').textContent      = t('nav_board')
+    document.getElementById('nav-weekly').textContent     = t('nav_weekly')
+    document.getElementById('nav-dashboard').textContent  = t('nav_dashboard')
+    document.getElementById('nav-monthly').textContent    = t('nav_monthly')
+    document.getElementById('nav-habits').textContent     = t('nav_habits')
+    document.getElementById('nav-cashflow').textContent   = t('nav_cashflow')
+    document.getElementById('nav-notes').textContent      = t('nav_notes')
+    document.getElementById('nav-timer').textContent      = t('nav_timer')
+    document.getElementById('nav-journal').textContent    = t('nav_journal')
+    document.getElementById('nav-goals').textContent      = t('nav_goals')
+    document.getElementById('lang-toggle').textContent    = t('lang_switch')
+    document.getElementById('win-min').title              = t('win_minimize')
+    document.getElementById('win-max').title              = t('win_maximize')
+    document.getElementById('win-close').title            = t('win_close')
+    document.getElementById('notes-sidebar-title').textContent = t('notes_title')
+    document.getElementById('notes-new-btn').textContent  = t('notes_new')
+    document.getElementById('notes-search').placeholder   = t('notes_search_ph')
+    document.getElementById('note-title').placeholder     = t('notes_title_ph')
+    document.getElementById('note-body').placeholder      = t('notes_placeholder')
+    document.getElementById('editor-empty-text').textContent = t('notes_empty')
+}
+
+// ── State ─────────────────────────────────────────────────
+let notes         = []
+let activeNoteId  = null
+let saveTimer     = null
+let searchQuery   = ''
+
+// ── Load ──────────────────────────────────────────────────
+async function loadNotes() {
+    notes = await window.flowAPI.getNotes()
+    renderSidebar()
+    if (!activeNoteId && notes.length > 0) {
+        openNote(notes[0].id)
+    }
+}
+
+// ── Sidebar ───────────────────────────────────────────────
+function renderSidebar() {
+    const listEl = document.getElementById('notes-list')
+    const query  = searchQuery.toLowerCase()
+    const filtered = query
+        ? notes.filter(n => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query))
+        : notes
+    // Pinned first
+    const sorted = [...filtered].sort((a,b) => {
+        if (a.pinned && !b.pinned) return -1
+        if (!a.pinned && b.pinned) return 1
+        return b.updated_at.localeCompare(a.updated_at)
+    })
+
+    if (sorted.length === 0) {
+        listEl.innerHTML = `<div class="notes-empty-sidebar">${t('notes_empty')}</div>`
+        return
+    }
+
+    listEl.innerHTML = sorted.map(note => {
+        const isActive  = note.id === activeNoteId
+        const title     = note.title || '(Başlıksız)'
+        const preview   = note.body.replace(/\n/g, ' ').slice(0, 60)
+        const dateStr   = formatNoteDate(note.updated_at)
+        return `<div class="note-list-item${isActive ? ' active' : ''}${note.pinned ? ' pinned' : ''}"
+                     onclick="openNote(${note.id})">
+            <div class="note-item-title">${escHtml(title)}</div>
+            <div class="note-item-preview">${escHtml(preview) || '—'}</div>
+            <div class="note-item-date">${dateStr}</div>
+            <div class="note-item-actions">
+                <button class="note-item-del" onclick="deleteNote(${note.id}, event)">✕</button>
+            </div>
+        </div>`
+    }).join('')
+}
+
+function formatNoteDate(isoStr) {
+    const d = new Date(isoStr)
+    return d.toLocaleDateString(t('date_locale'), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+// ── Open note ─────────────────────────────────────────────
+function openNote(id) {
+    // Save pending changes before switching
+    if (activeNoteId && activeNoteId !== id) flushSave()
+
+    activeNoteId = id
+    const note   = notes.find(n => n.id === id)
+    if (!note) return
+
+    document.getElementById('editor-empty').style.display  = 'none'
+    document.getElementById('editor-active').style.display = 'flex'
+    document.getElementById('note-title').value = note.title || ''
+    document.getElementById('note-body').value  = note.body  || ''
+    updatePinBtn(note.pinned)
+    hideSavedLabel()
+    renderSidebar()
+    document.getElementById('note-body').focus()
+}
+
+// ── Create note ───────────────────────────────────────────
+async function createNote() {
+    if (activeNoteId) flushSave()
+    const saved = await window.flowAPI.saveNote({ title: '', body: '' })
+    notes.unshift(saved)
+    openNote(saved.id)
+}
+
+// ── Auto-save ─────────────────────────────────────────────
+function scheduleAutoSave() {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(flushSave, 800)
+}
+
+async function flushSave() {
+    clearTimeout(saveTimer)
+    if (!activeNoteId) return
+    const title = document.getElementById('note-title').value
+    const body  = document.getElementById('note-body').value
+    const saved = await window.flowAPI.saveNote({ id: activeNoteId, title, body })
+    const idx   = notes.findIndex(n => n.id === activeNoteId)
+    if (idx !== -1) {
+        notes[idx].title      = saved.title
+        notes[idx].body       = saved.body
+        notes[idx].updated_at = saved.updated_at
+    }
+    renderSidebar()
+    showSavedLabel()
+}
+
+function showSavedLabel() {
+    const el = document.getElementById('notes-saved-lbl')
+    el.textContent = t('notes_saved')
+    el.classList.add('visible')
+    setTimeout(() => el.classList.remove('visible'), 2000)
+}
+function hideSavedLabel() {
+    const el = document.getElementById('notes-saved-lbl')
+    el.textContent = ''
+    el.classList.remove('visible')
+}
+
+// ── Pin ───────────────────────────────────────────────────
+async function togglePin() {
+    if (!activeNoteId) return
+    const note = notes.find(n => n.id === activeNoteId)
+    if (!note) return
+    note.pinned = !note.pinned
+    await window.flowAPI.saveNote({ id: activeNoteId, pinned: note.pinned })
+    updatePinBtn(note.pinned)
+    renderSidebar()
+}
+function updatePinBtn(pinned) {
+    const btn = document.getElementById('notes-pin-btn')
+    btn.textContent = pinned ? t('notes_unpin') : t('notes_pin')
+    btn.classList.toggle('pinned', pinned)
+}
+
+// ── Delete ────────────────────────────────────────────────
+async function deleteCurrentNote() {
+    if (!activeNoteId) return
+    await deleteNote(activeNoteId, null)
+}
+
+async function deleteNote(id, event) {
+    if (event) event.stopPropagation()
+    if (!confirm(t('notes_del'))) return
+    await window.flowAPI.deleteNote(id)
+    notes = notes.filter(n => n.id !== id)
+    if (activeNoteId === id) {
+        activeNoteId = null
+        document.getElementById('editor-active').style.display = 'none'
+        document.getElementById('editor-empty').style.display  = 'flex'
+    }
+    renderSidebar()
+    if (!activeNoteId && notes.length > 0) openNote(notes[0].id)
+}
+
+// ── Search ────────────────────────────────────────────────
+document.getElementById('notes-search').addEventListener('input', e => {
+    searchQuery = e.target.value.trim()
+    renderSidebar()
+})
+
+// ── Editor events ─────────────────────────────────────────
+document.getElementById('note-title').addEventListener('input', scheduleAutoSave)
+document.getElementById('note-body').addEventListener('input',  scheduleAutoSave)
+
+// Ctrl+S to force save
+document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); flushSave() }
+})
+
+// ── XSS ───────────────────────────────────────────────────
+function escHtml(s) {
+    if (!s) return ''
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+// ── Init ──────────────────────────────────────────────────
+applyI18n()
+loadNotes()
+</script>
+</body>
+</html>

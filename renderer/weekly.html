@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Haftalık — flow.</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { background: var(--bg); color: var(--text-color); }
+        .page-wrapper { padding: 48px 56px; max-width: 1140px; margin: 0 auto; }
+        .week-page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+        .week-page-title {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -1.5px;
+            text-transform: uppercase;
+        }
+        .week-nav-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .week-nav-row button {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--muted-text);
+            width: 32px; height: 32px;
+            cursor: pointer; font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .week-nav-row button:hover { color: var(--text-color); border-color: var(--text-color); }
+        .week-nav-label {
+            font-size: 0.78rem; font-weight: 600; color: var(--muted-text);
+            min-width: 200px; text-align: center;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .week-today-btn {
+            font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px;
+            background: transparent; border: 1px solid var(--border-color);
+            color: var(--muted-text); padding: 0 14px; height: 32px;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .week-today-btn:hover { color: var(--text-color); border-color: var(--text-color); }
+
+        /* summary stat cards */
+        .week-stat-card {
+            background: var(--card-bg);
+            border: 1px solid #0f0f0f;
+            padding: 22px 20px;
+        }
+        .week-stat-val { font-size: 2.2rem; font-weight: 800; letter-spacing: -2px; line-height: 1; margin-bottom: 6px; }
+        .week-stat-lbl { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted-text); }
+
+        .section-title {
+            font-size: 0.6rem; text-transform: uppercase; letter-spacing: 3px;
+            color: #2a2a2a; margin-bottom: 14px;
+        }
+    </style>
+</head>
+<body>
+<nav class="top-nav">
+    <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
+    <div class="nav-links">
+        <a class="nav-link" href="index.html" id="nav-board">Board</a>
+        <a class="nav-link active" href="weekly.html" id="nav-weekly">Haftalık</a>
+        <a class="nav-link" href="dashboard.html" id="nav-dashboard">Dashboard</a>
+        <a class="nav-link" href="monthly.html" id="nav-monthly">Aylık</a>
+        <a class="nav-link" href="habits.html" id="nav-habits">Alışkanlıklar</a>
+        <a class="nav-link" href="cashflow.html" id="nav-cashflow">Cashflow</a>
+        <a class="nav-link" href="notes.html" id="nav-notes">Notlar</a>
+        <a class="nav-link" href="timer.html"   id="nav-timer">Timer</a>
+        <a class="nav-link" href="journal.html" id="nav-journal">Günlük</a>
+        <a class="nav-link" href="goals.html"   id="nav-goals">Hedefler</a>
+    </div>
+    <div style="display:flex;align-items:center;-webkit-app-region:no-drag;">
+        <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
+        <div class="win-controls">
+            <button class="win-btn" onclick="window.flowAPI.windowMinimize()" id="win-min">&#8212;</button>
+            <button class="win-btn" onclick="window.flowAPI.windowMaximize()" id="win-max">&#9633;</button>
+            <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" id="win-close">&#10005;</button>
+        </div>
+    </div>
+</nav>
+
+<div class="page-wrapper">
+    <div class="week-page-header">
+        <div class="week-page-title" id="pg-title">HAFTALIK</div>
+        <div class="week-nav-row">
+            <button onclick="prevWeek()" title="Önceki hafta">&#8592;</button>
+            <div class="week-nav-label" id="week-range-label">—</div>
+            <button onclick="nextWeek()" id="btn-next-week" title="Sonraki hafta">&#8594;</button>
+            <button class="week-today-btn" onclick="goToday()">Bugün</button>
+        </div>
+    </div>
+
+    <!-- 7-day grid -->
+    <div class="section-title" id="week-grid-title">GÜN BAZLI</div>
+    <div class="week-grid" id="week-grid"></div>
+
+    <!-- Summary stats -->
+    <div class="section-title" id="summary-title">HAFTA ÖZETİ</div>
+    <div class="week-summary-grid" id="week-summary">
+        <div class="week-stat-card">
+            <div class="week-stat-val" id="stat-total">—</div>
+            <div class="week-stat-lbl" id="lbl-total">Toplam Görev</div>
+        </div>
+        <div class="week-stat-card">
+            <div class="week-stat-val" id="stat-done">—</div>
+            <div class="week-stat-lbl" id="lbl-done">Tamamlanan</div>
+        </div>
+        <div class="week-stat-card">
+            <div class="week-stat-val" id="stat-avg">—</div>
+            <div class="week-stat-lbl" id="lbl-avg">Ort. Oran</div>
+        </div>
+        <div class="week-stat-card">
+            <div class="week-stat-val" id="stat-best">—</div>
+            <div class="week-stat-lbl" id="lbl-best">En İyi Gün</div>
+        </div>
+    </div>
+</div>
+
+<script src="i18n.js"></script>
+<script>
+    // ── i18n ──────────────────────────────────────────────
+    const DAY_NAMES_TR = ['PAZ', 'PTSİ', 'SALI', 'ÇARŞ', 'PERŞ', 'CUMA', 'CMTSİ']
+    const DAY_NAMES_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+
+    function applyI18n() {
+        document.getElementById('nav-board').textContent      = t('nav_board')
+        document.getElementById('nav-weekly').textContent     = t('nav_weekly')
+        document.getElementById('nav-dashboard').textContent  = t('nav_dashboard')
+        document.getElementById('nav-monthly').textContent    = t('nav_monthly')
+        document.getElementById('nav-habits').textContent     = t('nav_habits')
+        document.getElementById('nav-cashflow').textContent   = t('nav_cashflow')
+        document.getElementById('nav-notes').textContent      = t('nav_notes')
+        document.getElementById('nav-timer').textContent      = t('nav_timer')
+        document.getElementById('nav-journal').textContent    = t('nav_journal')
+        document.getElementById('nav-goals').textContent      = t('nav_goals')
+        document.getElementById('lang-toggle').textContent    = t('lang_switch')
+        document.getElementById('win-min').title              = t('win_minimize')
+        document.getElementById('win-max').title              = t('win_maximize')
+        document.getElementById('win-close').title            = t('win_close')
+        document.getElementById('pg-title').textContent       = t('weekly_title')
+        document.getElementById('summary-title').textContent  = t('week_summary_title')
+        document.getElementById('lbl-total').textContent      = t('wstat_total')
+        document.getElementById('lbl-done').textContent       = t('wstat_done')
+        document.getElementById('lbl-avg').textContent        = t('wstat_avg')
+        document.getElementById('lbl-best').textContent       = t('wstat_best_day')
+    }
+
+    // ── Date utils ────────────────────────────────────────
+    function todayStr() { return new Date().toISOString().slice(0, 10) }
+
+    function offsetDate(dateStr, days) {
+        const d = new Date(dateStr + 'T00:00:00')
+        d.setDate(d.getDate() + days)
+        return d.toISOString().slice(0, 10)
+    }
+
+    function getMondayOf(dateStr) {
+        const d   = new Date(dateStr + 'T00:00:00')
+        const day = d.getDay()                  // 0=Sun
+        const diff = day === 0 ? -6 : 1 - day  // shift to Monday
+        d.setDate(d.getDate() + diff)
+        return d.toISOString().slice(0, 10)
+    }
+
+    function formatShortDate(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00')
+        return `${d.getDate()} ${d.toLocaleDateString(t('date_locale'), { month: 'short' }).toUpperCase()}`
+    }
+
+    function dayName(dateStr) {
+        const d   = new Date(dateStr + 'T00:00:00')
+        const dow = d.getDay()
+        return getLang() === 'tr' ? DAY_NAMES_TR[dow] : DAY_NAMES_EN[dow]
+    }
+
+    // ── Week navigation ───────────────────────────────────
+    let weekStart = getMondayOf(todayStr())  // ISO Mon
+
+    function prevWeek() {
+        weekStart = offsetDate(weekStart, -7)
+        loadWeek()
+    }
+    function nextWeek() {
+        const today    = todayStr()
+        const maxStart = getMondayOf(offsetDate(today, 365))
+        if (weekStart >= maxStart) return
+        weekStart = offsetDate(weekStart, 7)
+        loadWeek()
+    }
+    function goToday() {
+        weekStart = getMondayOf(todayStr())
+        loadWeek()
+    }
+
+    function updateNavLabel() {
+        const mon = weekStart
+        const sun = offsetDate(weekStart, 6)
+        const label = `${formatShortDate(mon)} — ${formatShortDate(sun)}`
+        document.getElementById('week-range-label').textContent = label
+
+        const today    = todayStr()
+        const maxStart = getMondayOf(offsetDate(today, 365))
+        document.getElementById('btn-next-week').style.opacity  = weekStart >= maxStart ? '0.3' : '1'
+        document.getElementById('btn-next-week').disabled       = weekStart >= maxStart
+    }
+
+    // ── Load & Render ──────────────────────────────────────
+    async function loadWeek() {
+        updateNavLabel()
+        const days = await window.flowAPI.getWeekData(weekStart)
+        renderGrid(days)
+        renderSummary(days)
+    }
+
+    function renderGrid(days) {
+        const grid  = document.getElementById('week-grid')
+        const today = todayStr()
+        grid.innerHTML = ''
+
+        days.forEach(day => {
+            const isToday  = day.date === today
+            const isFuture = day.date > today
+            const isEmpty  = day.total === 0
+
+            const scoreVal = day.score !== null ? `${day.score}%` : '—'
+            const scoreCls = day.score === null ? '' : day.score >= 80 ? 's-great' : day.score >= 50 ? 's-good' : ''
+            const barW     = day.score !== null ? day.score : 0
+
+            const cls = [
+                'week-day-card',
+                isToday  ? 'today'  : '',
+                isFuture ? 'future' : '',
+                isEmpty && !isFuture ? 'empty' : ''
+            ].filter(Boolean).join(' ')
+
+            const taskInfo = isEmpty
+                ? t('week_no_tasks')
+                : `${day.done}/${day.total}`
+
+            const card = document.createElement('a')
+            card.className = cls
+            card.href      = `index.html?date=${day.date}`
+            card.innerHTML = `
+                <div class="week-day-name">${dayName(day.date)}</div>
+                <div class="week-day-num">${new Date(day.date + 'T00:00:00').getDate()}</div>
+                <div class="week-day-score ${scoreCls}">${scoreVal}</div>
+                <div class="week-day-tasks">${taskInfo}</div>
+                <div class="week-day-bar">
+                    <div class="week-day-bar-fill" style="width:${barW}%"></div>
+                </div>
+                ${isToday ? '<div class="today-dot"></div>' : ''}
+            `
+            grid.appendChild(card)
+        })
+    }
+
+    function renderSummary(days) {
+        const withTasks   = days.filter(d => d.total > 0)
+        const totalTasks  = days.reduce((s, d) => s + d.total, 0)
+        const totalDone   = days.reduce((s, d) => s + d.done,  0)
+        const avgScore    = withTasks.length
+            ? Math.round(withTasks.reduce((s, d) => s + (d.score ?? 0), 0) / withTasks.length)
+            : null
+        const bestDay     = withTasks.length
+            ? withTasks.reduce((best, d) => (d.score ?? 0) > (best.score ?? 0) ? d : best, withTasks[0])
+            : null
+
+        document.getElementById('stat-total').textContent = totalTasks || '—'
+        document.getElementById('stat-done').textContent  = totalDone  || '—'
+        document.getElementById('stat-avg').textContent   = avgScore !== null ? `${avgScore}%` : '—'
+        document.getElementById('stat-best').textContent  = bestDay
+            ? `${dayName(bestDay.date)} ${bestDay.score}%` : '—'
+    }
+
+    // ── Init ──────────────────────────────────────────────
+    applyI18n()
+    loadWeek()
+</script>
+</body>
+</html>

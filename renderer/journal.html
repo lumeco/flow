@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Günlük — flow.</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { background: var(--bg); color: var(--text-color); overflow: hidden; height: 100vh; }
+        .journal-layout { margin-top: 56px; }
+    </style>
+</head>
+<body>
+<nav class="top-nav">
+    <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
+    <div class="nav-links">
+        <a class="nav-link" href="index.html"     id="nav-board">Board</a>
+        <a class="nav-link" href="weekly.html"    id="nav-weekly">Haftalık</a>
+        <a class="nav-link" href="dashboard.html" id="nav-dashboard">Dashboard</a>
+        <a class="nav-link" href="monthly.html"   id="nav-monthly">Aylık</a>
+        <a class="nav-link" href="habits.html"    id="nav-habits">Alışkanlıklar</a>
+        <a class="nav-link" href="cashflow.html"  id="nav-cashflow">Cashflow</a>
+        <a class="nav-link" href="notes.html"     id="nav-notes">Notlar</a>
+        <a class="nav-link" href="timer.html"     id="nav-timer">Timer</a>
+        <a class="nav-link active" href="journal.html" id="nav-journal">Günlük</a>
+        <a class="nav-link" href="goals.html"     id="nav-goals">Hedefler</a>
+    </div>
+    <div style="display:flex;align-items:center;-webkit-app-region:no-drag;">
+        <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
+        <div class="win-controls">
+            <button class="win-btn" onclick="window.flowAPI.windowMinimize()" id="win-min">&#8212;</button>
+            <button class="win-btn" onclick="window.flowAPI.windowMaximize()" id="win-max">&#9633;</button>
+            <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" id="win-close">&#10005;</button>
+        </div>
+    </div>
+</nav>
+
+<div class="journal-layout">
+    <!-- Left: Calendar sidebar -->
+    <div class="journal-cal-sidebar">
+        <div class="journal-cal-header">
+            <div class="journal-cal-title" id="pg-title">GÜNLÜK</div>
+            <div class="journal-cal-month-nav">
+                <button class="journal-cal-nav-btn" onclick="prevCalMonth()">&#8592;</button>
+                <span class="journal-cal-month-label" id="cal-month-label">—</span>
+                <button class="journal-cal-nav-btn" onclick="nextCalMonth()">&#8594;</button>
+            </div>
+        </div>
+        <div class="journal-cal-grid">
+            <div class="journal-cal-days" id="cal-day-names"></div>
+            <div class="journal-cal-cells" id="cal-cells"></div>
+        </div>
+        <div class="journal-streak-bar">
+            <span id="lbl-streak">GÜNLEDİK SERİSİ</span>:
+            <span class="journal-streak-val" id="streak-val">0</span> gün
+        </div>
+        <div class="journal-entries-list" id="entries-list"></div>
+    </div>
+
+    <!-- Right: Editor -->
+    <div class="journal-editor" id="journal-editor">
+        <!-- Empty state -->
+        <div class="journal-editor-empty" id="editor-empty">
+            <span id="editor-empty-text">Bir gün seçin veya bugün yaz.</span>
+            <button class="journal-new-btn" id="btn-new-today" onclick="openToday()">+ Bugün Yaz</button>
+        </div>
+
+        <!-- Active editor -->
+        <div id="editor-active" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+            <div class="journal-editor-toolbar">
+                <div class="journal-editor-date" id="editor-date-label">—</div>
+                <div class="journal-toolbar-right">
+                    <span class="journal-saved-lbl" id="journal-saved-lbl"></span>
+                    <button class="journal-save-btn" id="btn-save" onclick="flushSave()">Kaydet</button>
+                    <button class="journal-del-btn"  id="btn-del"  onclick="deleteCurrentEntry()">✕</button>
+                </div>
+            </div>
+            <div class="journal-editor-body">
+                <!-- Mood picker -->
+                <div>
+                    <div class="journal-section-label" id="lbl-mood">BUGÜN NASIL HİSSEDİYORSUN?</div>
+                    <div class="journal-mood-row">
+                        <div class="journal-mood-btns" id="mood-btns">
+                            <button class="journal-mood-btn" data-mood="1" onclick="setMood(1)" title="Berbat">😞</button>
+                            <button class="journal-mood-btn" data-mood="2" onclick="setMood(2)" title="Kötü">😕</button>
+                            <button class="journal-mood-btn" data-mood="3" onclick="setMood(3)" title="Normal">😐</button>
+                            <button class="journal-mood-btn" data-mood="4" onclick="setMood(4)" title="İyi">🙂</button>
+                            <button class="journal-mood-btn" data-mood="5" onclick="setMood(5)" title="Harika">😊</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main body -->
+                <div>
+                    <textarea class="journal-textarea main" id="journal-body"
+                        placeholder="Bugün neler düşündün? Neler hissettin?..."
+                        oninput="scheduleAutoSave()" rows="6"></textarea>
+                </div>
+
+                <!-- Highlights -->
+                <div>
+                    <div class="journal-section-label" id="lbl-highlights">ÖNE ÇIKANLAR</div>
+                    <textarea class="journal-textarea" id="journal-highlights"
+                        placeholder="Öne çıkan anlar..."
+                        oninput="scheduleAutoSave()" rows="3"></textarea>
+                </div>
+
+                <!-- Challenges -->
+                <div>
+                    <div class="journal-section-label" id="lbl-challenges">ZORLUKLAR</div>
+                    <textarea class="journal-textarea" id="journal-challenges"
+                        placeholder="Zorluklar / dikkat edilecekler..."
+                        oninput="scheduleAutoSave()" rows="3"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="i18n.js"></script>
+<script>
+'use strict'
+
+// ── i18n ──────────────────────────────────────────────────
+function applyI18n() {
+    const set = (id, key) => { const el = document.getElementById(id); if (el) el.textContent = t(key) }
+    set('nav-board','nav_board'); set('nav-weekly','nav_weekly')
+    set('nav-dashboard','nav_dashboard'); set('nav-monthly','nav_monthly')
+    set('nav-habits','nav_habits'); set('nav-cashflow','nav_cashflow')
+    set('nav-notes','nav_notes'); set('nav-timer','nav_timer')
+    set('nav-journal','nav_journal'); set('nav-goals','nav_goals')
+    set('lang-toggle','lang_switch')
+    document.getElementById('win-min').title   = t('win_minimize')
+    document.getElementById('win-max').title   = t('win_maximize')
+    document.getElementById('win-close').title = t('win_close')
+    set('pg-title','journal_title')
+    set('lbl-mood','journal_mood_label')
+    set('lbl-highlights','journal_highlights_label')
+    set('lbl-challenges','journal_challenges_label')
+    set('btn-save','journal_save')
+    set('btn-new-today','journal_new')
+    set('editor-empty-text','journal_select_day')
+    set('lbl-streak','journal_streak')
+    document.getElementById('journal-body').placeholder       = t('journal_body_ph')
+    document.getElementById('journal-highlights').placeholder = t('journal_highlights_ph')
+    document.getElementById('journal-challenges').placeholder = t('journal_challenges_ph')
+}
+
+// ── State ─────────────────────────────────────────────────
+let calYear   = new Date().getFullYear()
+let calMonth  = new Date().getMonth() + 1
+let activeDate = null
+let monthEntries = []
+let currentMood  = 3
+let saveTimer    = null
+
+const MOOD_EMOJIS = ['', '😞', '😕', '😐', '🙂', '😊']
+const MOOD_COLORS = ['', '#c03030', '#c07030', '#606060', '#3a7a3a', '#5aab5a']
+
+function todayStr() { return new Date().toISOString().slice(0, 10) }
+
+// ── Calendar ──────────────────────────────────────────────
+function prevCalMonth() {
+    if (calMonth === 1) { calMonth = 12; calYear-- } else calMonth--
+    loadMonth()
+}
+function nextCalMonth() {
+    if (calMonth === 12) { calMonth = 1; calYear++ } else calMonth++
+    loadMonth()
+}
+
+async function loadMonth() {
+    monthEntries = await window.flowAPI.getJournalMonth(calYear, calMonth)
+    renderCalendar()
+    renderEntriesList()
+    calcStreak()
+}
+
+function renderCalendar() {
+    const months    = t('months')
+    const daysShort = t('days_short')
+    document.getElementById('cal-month-label').textContent =
+        `${months[calMonth - 1]} ${calYear}`
+
+    // Day name headers (Mon–Sun)
+    document.getElementById('cal-day-names').innerHTML =
+        daysShort.map(d => `<div class="journal-cal-day-name">${d}</div>`).join('')
+
+    const firstDay = new Date(calYear, calMonth - 1, 1)
+    const daysInMonth  = new Date(calYear, calMonth, 0).getDate()
+    const daysInPrev   = new Date(calYear, calMonth - 1, 0).getDate()
+    const startWeekday = (firstDay.getDay() + 6) % 7 // Mon=0
+
+    const today    = todayStr()
+    const entryDates = new Set(monthEntries.map(e => e.date))
+    const moodByDate = {}
+    monthEntries.forEach(e => { moodByDate[e.date] = e.mood || 3 })
+
+    const cells = []
+    // Previous month filler
+    for (let i = startWeekday - 1; i >= 0; i--) {
+        cells.push(`<div class="journal-cal-cell other-month">${daysInPrev - i}</div>`)
+    }
+    // Current month days
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+        const hasEntry = entryDates.has(dateStr)
+        const isToday  = dateStr === today
+        const isSel    = dateStr === activeDate
+        const moodCls  = hasEntry ? ` journal-mood-dot-${moodByDate[dateStr]}` : ''
+        cells.push(`<div class="journal-cal-cell${hasEntry ? ' has-entry' : ''}${isToday ? ' today' : ''}${isSel ? ' selected' : ''}${moodCls}"
+                        onclick="selectDate('${dateStr}')">${d}</div>`)
+    }
+    // Next month filler
+    const totalCells = cells.length
+    const remainder  = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7)
+    for (let i = 1; i <= remainder; i++) {
+        cells.push(`<div class="journal-cal-cell other-month">${i}</div>`)
+    }
+    document.getElementById('cal-cells').innerHTML = cells.join('')
+}
+
+function renderEntriesList() {
+    const el = document.getElementById('entries-list')
+    const sorted = [...monthEntries].sort((a,b) => b.date.localeCompare(a.date))
+    if (sorted.length === 0) { el.innerHTML = ''; return }
+    el.innerHTML = sorted.map(e => {
+        const isActive = e.date === activeDate
+        const dayLabel = new Date(e.date + 'T00:00:00').toLocaleDateString(t('date_locale'), { weekday: 'short', day: 'numeric', month: 'short' })
+        return `<div class="journal-list-item${isActive ? ' active' : ''}" onclick="selectDate('${e.date}')">
+            <div class="journal-list-date">${dayLabel}</div>
+            <div class="journal-list-mood">${MOOD_EMOJIS[e.mood || 3]} ${e.body ? escHtml(e.body.slice(0, 40)) : '—'}</div>
+        </div>`
+    }).join('')
+}
+
+async function calcStreak() {
+    // Fetch last 3 months to cover any realistic streak (3 IPC calls vs 365)
+    const today = new Date()
+    const allDates = new Set()
+    for (let m = 0; m < 3; m++) {
+        const d = new Date(today.getFullYear(), today.getMonth() - m, 1)
+        const entries = await window.flowAPI.getJournalMonth(d.getFullYear(), d.getMonth() + 1)
+        entries.forEach(e => allDates.add(e.date))
+    }
+    let streak = 0
+    for (let i = 0; i < 92; i++) {
+        const d = new Date(today)
+        d.setDate(today.getDate() - i)
+        const ds = d.toISOString().slice(0, 10)
+        if (allDates.has(ds)) streak++
+        else if (i > 0) break
+    }
+    document.getElementById('streak-val').textContent = streak
+}
+
+// ── Select date ───────────────────────────────────────────
+async function selectDate(dateStr) {
+    if (activeDate && activeDate !== dateStr) flushSave()
+    activeDate = dateStr
+    renderCalendar()
+    renderEntriesList()
+
+    const entry = await window.flowAPI.getJournalEntry(dateStr)
+    openEditor(dateStr, entry)
+}
+
+async function openToday() {
+    await selectDate(todayStr())
+}
+
+function openEditor(dateStr, entry) {
+    document.getElementById('editor-empty').style.display  = 'none'
+    document.getElementById('editor-active').style.display = 'flex'
+
+    const d = new Date(dateStr + 'T00:00:00')
+    document.getElementById('editor-date-label').textContent =
+        d.toLocaleDateString(t('date_locale'), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()
+
+    document.getElementById('journal-body').value       = entry?.body        || ''
+    document.getElementById('journal-highlights').value = entry?.highlights  || ''
+    document.getElementById('journal-challenges').value = entry?.challenges  || ''
+    currentMood = entry?.mood || 3
+    setMood(currentMood, false)
+    hideSaved()
+}
+
+// ── Mood ──────────────────────────────────────────────────
+function setMood(mood, autoSave = true) {
+    currentMood = mood
+    document.querySelectorAll('.journal-mood-btn').forEach(btn => {
+        btn.classList.toggle('selected', parseInt(btn.dataset.mood) === mood)
+    })
+    if (autoSave) scheduleAutoSave()
+}
+
+// ── Save ──────────────────────────────────────────────────
+function scheduleAutoSave() {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(flushSave, 1000)
+}
+
+async function flushSave() {
+    clearTimeout(saveTimer)
+    if (!activeDate) return
+    const body       = document.getElementById('journal-body').value
+    const highlights = document.getElementById('journal-highlights').value
+    const challenges = document.getElementById('journal-challenges').value
+    await window.flowAPI.saveJournalEntry({ date: activeDate, mood: currentMood, body, highlights, challenges })
+    showSaved()
+    // Refresh month entries if the saved date is in current cal month
+    const [y, m] = activeDate.split('-').map(Number)
+    if (y === calYear && m === calMonth) {
+        monthEntries = await window.flowAPI.getJournalMonth(calYear, calMonth)
+        renderCalendar()
+        renderEntriesList()
+    }
+}
+
+function showSaved() {
+    const el = document.getElementById('journal-saved-lbl')
+    el.textContent = t('journal_saved')
+    el.classList.add('visible')
+    setTimeout(() => el.classList.remove('visible'), 2000)
+}
+function hideSaved() {
+    const el = document.getElementById('journal-saved-lbl')
+    el.textContent = ''
+    el.classList.remove('visible')
+}
+
+// ── Delete ────────────────────────────────────────────────
+async function deleteCurrentEntry() {
+    if (!activeDate) return
+    if (!confirm(t('journal_del'))) return
+    await window.flowAPI.deleteJournalEntry(activeDate)
+    activeDate = null
+    document.getElementById('editor-active').style.display = 'none'
+    document.getElementById('editor-empty').style.display  = 'flex'
+    loadMonth()
+}
+
+// ── Keyboard ──────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); flushSave() }
+})
+
+// ── XSS ───────────────────────────────────────────────────
+function escHtml(s) {
+    if (!s) return ''
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+// ── Init ──────────────────────────────────────────────────
+applyI18n()
+loadMonth()
+// Auto-open today if it's a new day
+const todayDate = todayStr()
+const [ty, tm] = todayDate.split('-').map(Number)
+if (ty === calYear && tm === calMonth) {
+    // Don't auto-open, let user choose
+}
+</script>
+</body>
+</html>

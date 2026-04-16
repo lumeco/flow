@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alışkanlıklar — flow.</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { background: var(--bg); color: var(--text-color); }
+        .page-wrapper { padding: 48px 56px; max-width: 1100px; margin: 0 auto; }
+    </style>
+</head>
+<body>
+<nav class="top-nav">
+    <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
+    <div class="nav-links">
+        <a class="nav-link" href="index.html" id="nav-board">Board</a>
+        <a class="nav-link" href="weekly.html" id="nav-weekly">Haftalık</a>
+        <a class="nav-link" href="dashboard.html" id="nav-dashboard">Dashboard</a>
+        <a class="nav-link" href="monthly.html" id="nav-monthly">Aylık</a>
+        <a class="nav-link active" href="habits.html" id="nav-habits">Alışkanlıklar</a>
+        <a class="nav-link" href="cashflow.html" id="nav-cashflow">Cashflow</a>
+        <a class="nav-link" href="notes.html" id="nav-notes">Notlar</a>
+        <a class="nav-link" href="timer.html"   id="nav-timer">Timer</a>
+        <a class="nav-link" href="journal.html" id="nav-journal">Günlük</a>
+        <a class="nav-link" href="goals.html"   id="nav-goals">Hedefler</a>
+    </div>
+    <div style="display:flex;align-items:center;-webkit-app-region:no-drag;">
+        <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
+        <div class="win-controls">
+            <button class="win-btn" onclick="window.flowAPI.windowMinimize()" id="win-min">&#8212;</button>
+            <button class="win-btn" onclick="window.flowAPI.windowMaximize()" id="win-max">&#9633;</button>
+            <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" id="win-close">&#10005;</button>
+        </div>
+    </div>
+</nav>
+
+<div class="page-wrapper">
+    <div class="habits-page-header">
+        <div class="habits-page-title" id="pg-title">ALIŞKANLIKLAR</div>
+        <div style="display:flex;align-items:center;gap:16px;">
+            <div class="habits-page-month-nav">
+                <button onclick="prevMonth()" id="btn-prev-month">&#8592;</button>
+                <div class="habits-month-label" id="month-label">—</div>
+                <button onclick="nextMonth()" id="btn-next-month">&#8594;</button>
+            </div>
+            <button class="btn-primary" style="font-size:0.7rem;padding:0 18px;height:36px;" onclick="openAddModal()" id="btn-add-habit">+ Yeni Alışkanlık</button>
+        </div>
+    </div>
+
+    <div class="habits-page-grid" id="habits-grid"></div>
+    <div class="habits-empty-state" id="habits-empty" style="display:none;" id="habits-empty-lbl">Henüz alışkanlık eklenmedi.</div>
+</div>
+
+<!-- Add Habit Modal -->
+<div id="habit-add-modal">
+    <div class="modal-content">
+        <h2 id="modal-add-title">Yeni Alışkanlık</h2>
+        <input type="text" id="habit-name-input" placeholder="Alışkanlık adı…">
+        <div class="modal-buttons">
+            <button class="btn-primary" id="habit-save-btn" onclick="confirmAddHabit()">Ekle</button>
+            <button class="btn-ghost" id="habit-cancel-btn" onclick="closeAddModal()">İptal</button>
+        </div>
+    </div>
+</div>
+
+<script src="i18n.js"></script>
+<script>
+    // ── i18n ──────────────────────────────────────────────
+    function applyI18n() {
+        document.getElementById('nav-board').textContent      = t('nav_board')
+        document.getElementById('nav-weekly').textContent     = t('nav_weekly')
+        document.getElementById('nav-dashboard').textContent  = t('nav_dashboard')
+        document.getElementById('nav-monthly').textContent    = t('nav_monthly')
+        document.getElementById('nav-habits').textContent     = t('nav_habits')        document.getElementById('nav-cashflow').textContent     = t('nav_cashflow')
+        document.getElementById('nav-notes').textContent        = t('nav_notes')
+        document.getElementById('nav-timer').textContent        = t('nav_timer')
+        document.getElementById('nav-journal').textContent      = t('nav_journal')
+        document.getElementById('nav-goals').textContent        = t('nav_goals')
+        document.getElementById('lang-toggle').textContent    = t('lang_switch')
+        document.getElementById('win-min').title              = t('win_minimize')
+        document.getElementById('win-max').title              = t('win_maximize')
+        document.getElementById('win-close').title            = t('win_close')
+        document.getElementById('pg-title').textContent       = t('habits_page_title')
+        document.getElementById('btn-add-habit').textContent  = t('habits_page_add')
+        document.getElementById('habits-empty').textContent   = t('habits_page_empty')
+        document.getElementById('modal-add-title').textContent = t('habits_page_add')
+        document.getElementById('habit-name-input').placeholder = t('habit_add_ph')
+        document.getElementById('habit-save-btn').textContent  = t('habit_save_btn')
+        document.getElementById('habit-cancel-btn').textContent = t('btn_cancel')
+    }
+
+    // ── State ─────────────────────────────────────────────
+    let habits    = []
+    let viewYear  = new Date().getFullYear()
+    let viewMonth = new Date().getMonth() + 1   // 1-12
+
+    function todayStr() { return new Date().toISOString().slice(0, 10) }
+
+    function monthLabel(year, month) {
+        const d = new Date(year, month - 1, 1)
+        return d.toLocaleDateString(t('date_locale'), { month: 'long', year: 'numeric' }).toUpperCase()
+    }
+
+    // ── Month navigation ──────────────────────────────────
+    function prevMonth() {
+        if (viewMonth === 1) { viewMonth = 12; viewYear-- }
+        else viewMonth--
+        renderAll()
+    }
+    function nextMonth() {
+        const now = new Date()
+        if (viewYear === now.getFullYear() && viewMonth === now.getMonth() + 1) return
+        if (viewMonth === 12) { viewMonth = 1; viewYear++ }
+        else viewMonth++
+        renderAll()
+    }
+
+    // ── Load & Render ──────────────────────────────────────
+    async function loadAndRender() {
+        habits = await window.flowAPI.getHabits()
+        renderAll()
+    }
+
+    async function renderAll() {
+        document.getElementById('month-label').textContent = monthLabel(viewYear, viewMonth)
+        const grid     = document.getElementById('habits-grid')
+        const emptyEl  = document.getElementById('habits-empty')
+        grid.innerHTML = ''
+
+        if (habits.length === 0) {
+            emptyEl.style.display = 'block'
+            return
+        }
+        emptyEl.style.display = 'none'
+
+        const today = todayStr()
+        const now   = new Date()
+        const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth() + 1
+
+        for (const habit of habits) {
+            const [streak, monthly] = await Promise.all([
+                window.flowAPI.getHabitStreak(habit.id),
+                window.flowAPI.getHabitMonthly(habit.id, viewYear, viewMonth)
+            ])
+
+            const todayLog  = monthly.dailyMap[today]
+            const isDoneToday = todayLog === true && isCurrentMonth
+
+            const card = document.createElement('div')
+            card.className = 'habit-card'
+
+            // Build heatmap dots
+            const daysInMonth = monthly.daysInMonth
+            const dotsHtml    = Array.from({ length: daysInMonth }, (_, i) => {
+                const day  = i + 1
+                const date = `${viewYear}-${String(viewMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+                const done = monthly.dailyMap[date] === true
+                const isToday = date === today && isCurrentMonth
+                const cls  = `hm-dot${done ? (isToday ? ' done bright' : ' done') : ''}${isToday ? ' today-marker' : ''}`
+                return `<div class="${cls}" title="${date}"></div>`
+            }).join('')
+
+            card.innerHTML = `
+                <button class="habit-card-del" onclick="removeHabit(${habit.id})" title="${t('btn_delete')}">✕</button>
+                <div class="habit-card-top">
+                    <div class="habit-card-name">${escapeHtml(habit.name)}</div>
+                    <button class="habit-today-btn ${isDoneToday ? 'done' : ''}" id="today-btn-${habit.id}"
+                            onclick="toggleToday(${habit.id}, ${!isDoneToday})"
+                            title="${isDoneToday ? t('habit_today_done') : t('habit_today_pending')}"
+                            ${!isCurrentMonth ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''}>
+                        ${isDoneToday ? '✓' : '○'}
+                    </button>
+                </div>
+                <div class="habit-streaks">
+                    <div>
+                        <div class="habit-streak-val">${streak.current}</div>
+                        <div class="habit-streak-lbl">${t('habit_streak_lbl')}</div>
+                    </div>
+                    <div>
+                        <div class="habit-streak-val" style="color:#333;">${streak.best}</div>
+                        <div class="habit-streak-lbl">${t('habit_best_lbl')}</div>
+                    </div>
+                </div>
+                <div class="habit-heatmap">${dotsHtml}</div>
+                <div class="habit-month-summary">${monthly.completedCount} / ${daysInMonth} ${t('habit_month_done')}</div>
+            `
+            grid.appendChild(card)
+        }
+    }
+
+    async function toggleToday(habitId, val) {
+        const today = todayStr()
+        await window.flowAPI.toggleHabitLog(habitId, today, val)
+        renderAll()
+    }
+
+    async function removeHabit(habitId) {
+        if (!confirm(t('habit_del_page_confirm'))) return
+        await window.flowAPI.deleteHabit(habitId)
+        habits = habits.filter(h => h.id !== habitId)
+        renderAll()
+    }
+
+    // ── Add modal ─────────────────────────────────────────
+    function openAddModal() {
+        document.getElementById('habit-add-modal').classList.add('visible')
+        document.getElementById('habit-name-input').value = ''
+        document.getElementById('habit-name-input').focus()
+    }
+    function closeAddModal() {
+        document.getElementById('habit-add-modal').classList.remove('visible')
+        document.getElementById('habit-name-input').value = ''
+    }
+    async function confirmAddHabit() {
+        const name = document.getElementById('habit-name-input').value.trim()
+        if (!name) return
+        const saved = await window.flowAPI.saveHabit({ name })
+        habits.push(saved)
+        closeAddModal()
+        renderAll()
+    }
+
+    document.getElementById('habit-add-modal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeAddModal()
+    })
+    document.getElementById('habit-name-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter')  confirmAddHabit()
+        if (e.key === 'Escape') closeAddModal()
+    })
+
+    // ── XSS guard ─────────────────────────────────────────
+    function escapeHtml(str) {
+        if (!str) return ''
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    }
+
+    // ── Init ──────────────────────────────────────────────
+    applyI18n()
+    loadAndRender()
+</script>
+</body>
+</html>

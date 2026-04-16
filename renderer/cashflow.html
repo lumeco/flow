@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cashflow — flow.</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { background: var(--bg); color: var(--text-color); overflow: hidden; }
+        .page-wrapper { padding: 36px 48px; max-width: 1200px; margin: 0 auto; height: calc(100vh - 56px); overflow-y: auto; }
+        .page-wrapper::-webkit-scrollbar { width: 2px; }
+        .page-wrapper::-webkit-scrollbar-thumb { background: #151515; }
+        .cf-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+        .cf-left { display: flex; align-items: center; gap: 20px; }
+        .cf-right { display: flex; align-items: center; gap: 10px; }
+        .btn-sm { font-size: 0.65rem; padding: 0 16px; height: 34px; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+<nav class="top-nav">
+    <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
+    <div class="nav-links">
+        <a class="nav-link" href="index.html"     id="nav-board">Board</a>
+        <a class="nav-link" href="weekly.html"    id="nav-weekly">Haftalık</a>
+        <a class="nav-link" href="dashboard.html" id="nav-dashboard">Dashboard</a>
+        <a class="nav-link" href="monthly.html"   id="nav-monthly">Aylık</a>
+        <a class="nav-link" href="habits.html"    id="nav-habits">Alışkanlıklar</a>
+        <a class="nav-link active" href="cashflow.html" id="nav-cashflow">Cashflow</a>
+        <a class="nav-link" href="notes.html"     id="nav-notes">Notlar</a>
+        <a class="nav-link" href="timer.html"      id="nav-timer">Timer</a>
+        <a class="nav-link" href="journal.html"    id="nav-journal">Günlük</a>
+        <a class="nav-link" href="goals.html"      id="nav-goals">Hedefler</a>
+    </div>
+    <div style="display:flex;align-items:center;-webkit-app-region:no-drag;">
+        <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
+        <div class="win-controls">
+            <button class="win-btn" onclick="window.flowAPI.windowMinimize()" id="win-min">&#8212;</button>
+            <button class="win-btn" onclick="window.flowAPI.windowMaximize()" id="win-max">&#9633;</button>
+            <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" id="win-close">&#10005;</button>
+        </div>
+    </div>
+</nav>
+
+<div class="page-wrapper">
+    <!-- Header -->
+    <div class="cf-header-row">
+        <div class="cf-left">
+            <div class="cf-page-title" id="pg-title">CASHFLOW</div>
+            <div class="cf-month-nav">
+                <button onclick="prevMonth()">&#8592;</button>
+                <div class="cf-month-label" id="cf-month-label">—</div>
+                <button onclick="nextMonth()">&#8594;</button>
+            </div>
+        </div>
+        <div class="cf-right">
+            <button class="btn-ghost btn-sm cf-btn-income"  onclick="openModal('income')"  id="btn-add-income">+ Gelir</button>
+            <button class="btn-ghost btn-sm cf-btn-expense" onclick="openModal('expense')" id="btn-add-expense">+ Gider</button>
+            <button class="btn-ghost btn-sm" onclick="openFixedModal()" id="btn-add-fixed" style="font-size:0.6rem;">+ Sabit</button>
+        </div>
+    </div>
+
+    <!-- Top stat cards -->
+    <div class="cf-top-grid">
+        <div class="cf-stat-card income">
+            <div class="cf-stat-label" id="lbl-income">GELİR</div>
+            <div class="cf-stat-amount" id="stat-income">₺0</div>
+            <div class="cf-stat-sub" id="sub-income"></div>
+        </div>
+        <div class="cf-stat-card expense">
+            <div class="cf-stat-label" id="lbl-expense">GİDER</div>
+            <div class="cf-stat-amount" id="stat-expense">₺0</div>
+            <div class="cf-stat-sub" id="sub-expense"></div>
+        </div>
+        <div class="cf-stat-card balance" id="balance-card">
+            <div class="cf-stat-label" id="lbl-balance">NET BAKİYE</div>
+            <div class="cf-stat-amount" id="stat-balance">₺0</div>
+            <div class="cf-rate-bar"><div class="cf-rate-bar-fill" id="rate-bar-fill" style="width:0%"></div></div>
+            <div class="cf-rate-pct" id="rate-pct"></div>
+        </div>
+    </div>
+
+    <!-- Body: transactions + sidebar -->
+    <div class="cf-body">
+        <!-- Left: transaction list -->
+        <div class="cf-tx-section">
+            <div class="cf-section-title" id="lbl-tx-list">BU AYKİ İŞLEMLER</div>
+            <div id="tx-list"></div>
+        </div>
+
+        <!-- Right sidebar -->
+        <div class="cf-sidebar">
+            <!-- Optimizer insight -->
+            <div class="cf-optimizer" id="optimizer-box">
+                <div class="cf-optimizer-title" id="optimizer-title">CASHFLOW ÖNERİ</div>
+                <div class="cf-optimizer-text" id="optimizer-text">Henüz veri yok. Gelir ve gider ekledikçe öneriler görünecek.</div>
+            </div>
+
+            <!-- 6-month trend -->
+            <div class="cf-section-title" id="lbl-trend">SON 6 AY</div>
+            <div class="cf-trend-bars" id="trend-bars"></div>
+            <div style="display:flex;justify-content:space-between;" id="trend-labels"></div>
+
+            <!-- Category breakdown -->
+            <div class="cf-section-title" style="margin-top:24px;" id="lbl-breakdown">KATEGORİ</div>
+            <div id="cat-breakdown"></div>
+
+            <!-- Fixed items -->
+            <div class="cf-section-title" style="margin-top:24px;" id="lbl-fixed">SABİT KALEMLEr</div>
+            <div id="fixed-list"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Transaction modal -->
+<div id="cf-modal">
+    <div class="modal-content cf-modal-content">
+        <h2 id="cf-modal-title">Yeni İşlem</h2>
+
+        <div class="cf-type-toggle">
+            <button id="type-income-btn"  onclick="setModalType('income')" >Gelir</button>
+            <button id="type-expense-btn" onclick="setModalType('expense')">Gider</button>
+        </div>
+
+        <div class="modal-field">
+            <label class="modal-field-label" id="lbl-modal-amount">Miktar (TL)</label>
+            <input class="cf-amount-input" id="cf-amount" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+
+        <div class="modal-field">
+            <label class="modal-field-label" id="lbl-modal-category">Kategori</label>
+            <div class="cf-cat-grid" id="cf-cat-grid"></div>
+        </div>
+
+        <div class="modal-field">
+            <label class="modal-field-label" id="lbl-modal-desc">Açıklama</label>
+            <input type="text" id="cf-desc" placeholder="Açıklama (opsiyonel)">
+        </div>
+
+        <div class="modal-field">
+            <label class="modal-field-label" id="lbl-modal-date">Tarih</label>
+            <input type="date" id="cf-date" class="modal-deadline-input">
+        </div>
+
+        <div class="modal-buttons">
+            <button class="btn-primary" id="cf-save-btn" onclick="saveTx()">Ekle</button>
+            <button class="btn-ghost"   id="cf-cancel-btn" onclick="closeModal()">İptal</button>
+        </div>
+    </div>
+</div>
+
+<!-- Fixed item modal -->
+<div id="cf-fixed-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);display:none;justify-content:center;align-items:center;z-index:1000;">
+    <div class="modal-content" style="width:400px;max-width:94vw;">
+        <h2 id="cf-fixed-modal-title">Sabit Kalem Ekle</h2>
+        <div class="cf-type-toggle">
+            <button id="fixed-type-income-btn"  onclick="setFixedType('income')" >Gelir</button>
+            <button id="fixed-type-expense-btn" onclick="setFixedType('expense')">Gider</button>
+        </div>
+        <div class="modal-field">
+            <label class="modal-field-label">Açıklama</label>
+            <input type="text" id="fixed-desc" placeholder="ör: Ev Kirası">
+        </div>
+        <div class="modal-field">
+            <label class="modal-field-label" id="lbl-fixed-amount">Miktar (TL)</label>
+            <input class="cf-amount-input" id="fixed-amount" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="modal-field">
+            <label class="modal-field-label" id="lbl-fixed-cat">Kategori</label>
+            <div class="cf-cat-grid" id="cf-fixed-cat-grid"></div>
+        </div>
+        <div class="modal-field">
+            <label class="modal-field-label" id="lbl-fixed-day">Her ayın kaçında?</label>
+            <input type="number" id="fixed-day" min="1" max="31" value="1" style="width:80px;">
+        </div>
+        <div class="modal-buttons">
+            <button class="btn-primary" id="fixed-save-btn" onclick="saveFixed()">Kaydet</button>
+            <button class="btn-ghost"   onclick="closeFixedModal()">İptal</button>
+        </div>
+    </div>
+</div>
+
+<script src="i18n.js"></script>
+<script>
+'use strict'
+
+// ── i18n ──────────────────────────────────────────────────
+function applyI18n() {
+    document.getElementById('nav-board').textContent      = t('nav_board')
+    document.getElementById('nav-weekly').textContent     = t('nav_weekly')
+    document.getElementById('nav-dashboard').textContent  = t('nav_dashboard')
+    document.getElementById('nav-monthly').textContent    = t('nav_monthly')
+    document.getElementById('nav-habits').textContent     = t('nav_habits')
+    document.getElementById('nav-cashflow').textContent   = t('nav_cashflow')
+    document.getElementById('nav-notes').textContent      = t('nav_notes')
+    document.getElementById('nav-timer').textContent      = t('nav_timer')
+    document.getElementById('nav-journal').textContent    = t('nav_journal')
+    document.getElementById('nav-goals').textContent      = t('nav_goals')
+    document.getElementById('lang-toggle').textContent    = t('lang_switch')
+    document.getElementById('win-min').title              = t('win_minimize')
+    document.getElementById('win-max').title              = t('win_maximize')
+    document.getElementById('win-close').title            = t('win_close')
+    document.getElementById('pg-title').textContent       = t('cashflow_title')
+    document.getElementById('lbl-income').textContent     = t('cashflow_income').toUpperCase()
+    document.getElementById('lbl-expense').textContent    = t('cashflow_expense').toUpperCase()
+    document.getElementById('lbl-balance').textContent    = t('cashflow_balance').toUpperCase()
+    document.getElementById('btn-add-income').textContent = t('cashflow_add_income')
+    document.getElementById('btn-add-expense').textContent= t('cashflow_add_expense')
+    document.getElementById('btn-add-fixed').textContent  = t('cashflow_fixed_add')
+    document.getElementById('cf-modal-title').textContent = t('cashflow_modal_title_add')
+    document.getElementById('optimizer-title').textContent= t('cashflow_optimizer_title')
+    document.getElementById('lbl-modal-amount').textContent   = t('cashflow_modal_amount')
+    document.getElementById('lbl-modal-category').textContent = t('cashflow_modal_category')
+    document.getElementById('lbl-modal-desc').textContent     = t('cashflow_modal_desc')
+    document.getElementById('lbl-modal-date').textContent     = t('cashflow_modal_date')
+    document.getElementById('cf-save-btn').textContent        = t('btn_add')
+    document.getElementById('cf-cancel-btn').textContent      = t('btn_cancel')
+    document.getElementById('cf-fixed-modal-title').textContent = t('cashflow_modal_title_fixed')
+    document.getElementById('lbl-fixed-amount').textContent   = t('cashflow_modal_amount')
+    document.getElementById('lbl-fixed-cat').textContent      = t('cashflow_modal_category')
+    document.getElementById('lbl-fixed-day').textContent      = t('cashflow_modal_day')
+    document.getElementById('fixed-save-btn').textContent     = t('btn_save')
+    document.getElementById('type-income-btn').textContent    = t('cashflow_type_income')
+    document.getElementById('type-expense-btn').textContent   = t('cashflow_type_expense')
+    document.getElementById('fixed-type-income-btn').textContent  = t('cashflow_type_income')
+    document.getElementById('fixed-type-expense-btn').textContent = t('cashflow_type_expense')
+    buildCatGrids()
+}
+
+// ── State ─────────────────────────────────────────────────
+let viewYear  = new Date().getFullYear()
+let viewMonth = new Date().getMonth() + 1
+let modalType  = 'expense'
+let fixedType  = 'expense'
+let selCat     = null
+let fixedSelCat = null
+let summary    = null
+let fixedItems = []
+
+// ── Formatters ────────────────────────────────────────────
+function fmt(n) {
+    return new Intl.NumberFormat(t('date_locale'), { style: 'currency', currency: 'TRY', minimumFractionDigits: 0 }).format(n)
+}
+function todayStr() { return new Date().toISOString().slice(0, 10) }
+function monthLabel(y, m) {
+    return new Date(y, m-1, 1).toLocaleDateString(t('date_locale'), { month: 'long', year: 'numeric' }).toUpperCase()
+}
+function shortDate(dateStr) {
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString(t('date_locale'), { day: 'numeric', month: 'short' })
+}
+
+// ── Month nav ─────────────────────────────────────────────
+function prevMonth() {
+    if (viewMonth === 1) { viewMonth = 12; viewYear-- } else viewMonth--
+    loadAll()
+}
+function nextMonth() {
+    if (viewMonth === 12) { viewMonth = 1; viewYear++ } else viewMonth++
+    loadAll()
+}
+
+// ── Load ──────────────────────────────────────────────────
+async function loadAll() {
+    document.getElementById('cf-month-label').textContent = monthLabel(viewYear, viewMonth)
+    const [s, alltime, fx] = await Promise.all([
+        window.flowAPI.getMonthlySummary(viewYear, viewMonth),
+        window.flowAPI.getAllTimeSummary(),
+        window.flowAPI.getFixedItems()
+    ])
+    summary    = s
+    fixedItems = fx
+    renderStats(s)
+    renderTransactions(s.txs)
+    renderCategoryBreakdown(s.byCat)
+    renderFixedItems(fx)
+    renderTrend(alltime.months)
+    renderOptimizer(s)
+}
+
+// ── Stats ─────────────────────────────────────────────────
+function renderStats(s) {
+    document.getElementById('stat-income').textContent  = fmt(s.income)
+    document.getElementById('stat-expense').textContent = fmt(s.expense)
+    document.getElementById('stat-balance').textContent = (s.balance >= 0 ? '+' : '') + fmt(s.balance)
+
+    const card = document.getElementById('balance-card')
+    card.classList.toggle('positive', s.balance >= 0)
+    card.classList.toggle('negative', s.balance < 0)
+
+    const rate = s.income > 0 ? Math.max(0, Math.round((s.balance / s.income) * 100)) : 0
+    const rateEl = document.getElementById('rate-pct')
+    rateEl.textContent = `${t('cashflow_rate_title')}: ${rate}%`
+    rateEl.classList.toggle('negative', s.balance < 0)
+    document.getElementById('rate-bar-fill').style.width = `${Math.min(100, rate)}%`
+
+    const fixedIncome  = fixedItems.filter(f => f.type === 'income').reduce((s2, f) => s2 + f.amount, 0)
+    const fixedExpense = fixedItems.filter(f => f.type === 'expense').reduce((s2, f) => s2 + f.amount, 0)
+    document.getElementById('sub-income').textContent  = fixedIncome  ? `+${fmt(fixedIncome)} ${t('cashflow_fixed_income')}`  : ''
+    document.getElementById('sub-expense').textContent = fixedExpense ? `+${fmt(fixedExpense)} ${t('cashflow_fixed_expense')}` : ''
+}
+
+// ── Transactions ──────────────────────────────────────────
+function renderTransactions(txs) {
+    const el = document.getElementById('tx-list')
+    if (!txs || txs.length === 0) {
+        el.innerHTML = `<div class="cf-no-tx">${t('cashflow_no_tx')}</div>`
+        return
+    }
+    // Group by date
+    const groups = {}
+    txs.forEach(tx => {
+        if (!groups[tx.date]) groups[tx.date] = []
+        groups[tx.date].push(tx)
+    })
+    el.innerHTML = Object.keys(groups).sort((a,b) => b.localeCompare(a)).map(date => {
+        const rows = groups[date].map(tx => `
+            <div class="cf-tx-row">
+                <div class="cf-tx-dot ${tx.type}"></div>
+                <div class="cf-tx-info">
+                    <div class="cf-tx-cat">${escHtml(tx.category)}</div>
+                    ${tx.description ? `<div class="cf-tx-desc">${escHtml(tx.description)}</div>` : ''}
+                </div>
+                <div class="cf-tx-amount ${tx.type}">${tx.type === 'income' ? '+' : '-'}${fmt(tx.amount)}</div>
+                <button class="cf-tx-del" onclick="deleteTx(${tx.id})">✕</button>
+            </div>`).join('')
+        return `<div class="cf-tx-group">
+            <div class="cf-tx-date-header">${shortDate(date)}</div>
+            ${rows}
+        </div>`
+    }).join('')
+}
+
+// ── Category breakdown ────────────────────────────────────
+function renderCategoryBreakdown(byCat) {
+    const el  = document.getElementById('cat-breakdown')
+    const cats = Object.entries(byCat).sort((a,b) => (b[1].income + b[1].expense) - (a[1].income + a[1].expense))
+    if (cats.length === 0) { el.innerHTML = ''; return }
+    const maxVal = Math.max(...cats.map(([,v]) => v.income + v.expense))
+    el.innerHTML = cats.map(([cat, vals]) => {
+        const total  = vals.income + vals.expense
+        const pct    = maxVal > 0 ? Math.round((total / maxVal) * 100) : 0
+        const isInc  = vals.income > vals.expense
+        return `<div class="cf-cat-row">
+            <div class="cf-cat-name">${escHtml(cat)}</div>
+            <div class="cf-cat-bar"><div class="cf-cat-bar-fill ${isInc ? 'income' : 'expense'}" style="width:${pct}%"></div></div>
+            <div class="cf-cat-val">${fmt(total)}</div>
+        </div>`
+    }).join('')
+}
+
+// ── Fixed items ───────────────────────────────────────────
+function renderFixedItems(items) {
+    const el = document.getElementById('fixed-list')
+    if (!items || items.length === 0) {
+        el.innerHTML = `<div class="cf-no-fixed">${t('cashflow_no_fixed')}</div>`
+        return
+    }
+    el.innerHTML = items.map(item => `
+        <div class="cf-fixed-row">
+            <span class="cf-fixed-type ${item.type}">${t(`cashflow_type_${item.type}`)}</span>
+            <div class="cf-fixed-info">
+                <div class="cf-fixed-cat">${escHtml(item.category)}${item.description ? ' — ' + escHtml(item.description) : ''}</div>
+                <div class="cf-fixed-day">${t('cashflow_modal_day')}: ${item.dayOfMonth}</div>
+            </div>
+            <div class="cf-fixed-amount ${item.type}">${item.type === 'income' ? '+' : '-'}${fmt(item.amount)}</div>
+            <button class="cf-fixed-del" onclick="delFixed(${item.id})">✕</button>
+        </div>`).join('')
+}
+
+// ── 6-month trend ─────────────────────────────────────────
+function renderTrend(months) {
+    const barsEl   = document.getElementById('trend-bars')
+    const labelsEl = document.getElementById('trend-labels')
+    const maxVal   = Math.max(...months.map(m => Math.max(m.income, m.expense)), 1)
+    const now      = new Date()
+    const monthNames = t('months_short')
+
+    barsEl.innerHTML = months.map(m => {
+        const iH = Math.round((m.income  / maxVal) * 56)
+        const eH = Math.round((m.expense / maxVal) * 56)
+        return `<div class="cf-trend-col">
+            <div class="cf-trend-bar-pair">
+                <div class="cf-trend-bar income"  style="height:${iH}px"></div>
+                <div class="cf-trend-bar expense" style="height:${eH}px"></div>
+            </div>
+        </div>`
+    }).join('')
+
+    labelsEl.innerHTML = months.map(m => {
+        const isCurrent = m.year === now.getFullYear() && m.month === now.getMonth() + 1
+        return `<span class="cf-trend-month-label${isCurrent ? ' now' : ''}" style="font-size:0.5rem;">${monthNames[m.month - 1]}</span>`
+    }).join('')
+}
+
+// ── Optimizer insight ─────────────────────────────────────
+function renderOptimizer(s) {
+    const el = document.getElementById('optimizer-text')
+    if (s.income === 0 && s.expense === 0) {
+        el.innerHTML = 'Henüz veri yok. Gelir ve gider ekledikçe öneriler görünecek.'
+        return
+    }
+    const rate = s.income > 0 ? (s.balance / s.income) * 100 : -100
+    let insight = ''
+    if (s.income === 0) {
+        insight = `Bu ay hiç <strong>gelir</strong> kaydedilmedi. Giderlerin ${fmt(s.expense)}.`
+    } else if (rate >= 50) {
+        insight = `Harika! Gelirinizin <strong>${Math.round(rate)}%</strong>'ini biriktiriyorsunuz. Bu ay net: <strong>${fmt(s.balance)}</strong>.`
+    } else if (rate >= 20) {
+        insight = `Tasarruf oranınız <strong>${Math.round(rate)}%</strong>. Hedef %50 için giderlerinizi <strong>${fmt(s.income * 0.5 - s.balance)}</strong> azaltın.`
+    } else if (rate >= 0) {
+        insight = `Tasarruf oranınız düşük: <strong>${Math.round(rate)}%</strong>. Giderlerinizi gözden geçirin — bu ay <strong>${fmt(s.expense)}</strong> harcadınız.`
+    } else {
+        insight = `⚠ Bu ay giderler geliri <strong>${fmt(Math.abs(s.balance))}</strong> aştı. Sabit giderleri kontrol edin.`
+    }
+    // Category suggestion
+    const cats   = Object.entries(s.byCat).sort((a,b) => b[1].expense - a[1].expense)
+    const topExp = cats.filter(([,v]) => v.expense > 0)[0]
+    if (topExp && s.expense > 0) {
+        insight += ` En yüksek gider kategorisi: <strong>${escHtml(topExp[0])}</strong> (${fmt(topExp[1].expense)}).`
+    }
+    el.innerHTML = insight
+}
+
+// ── Modal ─────────────────────────────────────────────────
+function openModal(type) {
+    modalType = type || 'expense'
+    selCat    = null
+    setModalType(modalType)
+    document.getElementById('cf-amount').value = ''
+    document.getElementById('cf-desc').value   = ''
+    document.getElementById('cf-date').value   = todayStr()
+    document.getElementById('cf-modal').classList.add('visible')
+    document.getElementById('cf-amount').focus()
+}
+function closeModal() {
+    document.getElementById('cf-modal').classList.remove('visible')
+}
+
+function setModalType(type) {
+    modalType = type
+    const incBtn = document.getElementById('type-income-btn')
+    const expBtn = document.getElementById('type-expense-btn')
+    incBtn.className = type === 'income'  ? 'active-income'  : ''
+    expBtn.className = type === 'expense' ? 'active-expense' : ''
+    buildCatGrid('cf-cat-grid', type, (c) => { selCat = c }, () => selCat)
+}
+
+function buildCatGrids() {
+    buildCatGrid('cf-cat-grid',       modalType, (c) => { selCat      = c }, () => selCat)
+    buildCatGrid('cf-fixed-cat-grid', fixedType,  (c) => { fixedSelCat = c }, () => fixedSelCat)
+}
+
+function buildCatGrid(containerId, type, setter, getter) {
+    const cats = t('cashflow_categories')
+    const el   = document.getElementById(containerId)
+    if (!el) return
+    const incCats = cats.slice(0, 4)
+    const expCats = cats.slice(4)
+    const show    = type === 'income' ? incCats : expCats
+    el.innerHTML  = show.map(cat => {
+        const isSelected = getter() === cat
+        return `<button class="cf-cat-chip${isSelected ? ' selected' : ''}" onclick="selectCat('${containerId}', '${escAttr(cat)}', ${containerId === 'cf-cat-grid'})">
+            ${escHtml(cat)}</button>`
+    }).join('')
+}
+
+function selectCat(containerId, cat, isMain) {
+    if (isMain) selCat = cat
+    else fixedSelCat = cat
+    document.querySelectorAll(`#${containerId} .cf-cat-chip`).forEach(btn => {
+        btn.classList.toggle('selected', btn.textContent.trim() === cat)
+    })
+}
+
+async function saveTx() {
+    const amount = parseFloat(document.getElementById('cf-amount').value)
+    if (!amount || amount <= 0) { document.getElementById('cf-amount').focus(); return }
+    const date = document.getElementById('cf-date').value || todayStr()
+    const desc = document.getElementById('cf-desc').value.trim()
+    const cat  = selCat || (modalType === 'income' ? t('cashflow_categories')[0] : t('cashflow_categories')[4])
+    await window.flowAPI.addTransaction({ type: modalType, amount, category: cat, description: desc, date })
+    closeModal()
+    loadAll()
+}
+
+async function deleteTx(id) {
+    if (!confirm(t('cashflow_del_tx'))) return
+    await window.flowAPI.deleteTransaction(id)
+    loadAll()
+}
+
+// ── Fixed modal ───────────────────────────────────────────
+function openFixedModal() {
+    fixedType   = 'expense'
+    fixedSelCat = null
+    setFixedType('expense')
+    document.getElementById('fixed-desc').value   = ''
+    document.getElementById('fixed-amount').value = ''
+    document.getElementById('fixed-day').value    = '1'
+    document.getElementById('cf-fixed-modal').style.display = 'flex'
+    document.getElementById('fixed-desc').focus()
+}
+function closeFixedModal() {
+    document.getElementById('cf-fixed-modal').style.display = 'none'
+}
+function setFixedType(type) {
+    fixedType = type
+    const i = document.getElementById('fixed-type-income-btn')
+    const e = document.getElementById('fixed-type-expense-btn')
+    i.className = type === 'income'  ? 'active-income'  : ''
+    e.className = type === 'expense' ? 'active-expense' : ''
+    buildCatGrid('cf-fixed-cat-grid', type, (c) => { fixedSelCat = c }, () => fixedSelCat)
+}
+async function saveFixed() {
+    const amount = parseFloat(document.getElementById('fixed-amount').value)
+    const desc   = document.getElementById('fixed-desc').value.trim()
+    const day    = parseInt(document.getElementById('fixed-day').value) || 1
+    if (!amount || amount <= 0) return
+    const cat = fixedSelCat || (fixedType === 'income' ? t('cashflow_categories')[0] : t('cashflow_categories')[4])
+    await window.flowAPI.saveFixedItem({ type: fixedType, amount, category: cat, description: desc, dayOfMonth: day })
+    closeFixedModal()
+    loadAll()
+}
+async function delFixed(id) {
+    if (!confirm(t('cashflow_del_fixed'))) return
+    await window.flowAPI.deleteFixedItem(id)
+    loadAll()
+}
+
+// ── Event listeners ───────────────────────────────────────
+document.getElementById('cf-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal() })
+document.getElementById('cf-fixed-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeFixedModal() })
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(); closeFixedModal() }
+})
+document.getElementById('cf-amount').addEventListener('keydown', e => { if (e.key === 'Enter') saveTx() })
+
+// ── XSS ───────────────────────────────────────────────────
+function escHtml(s) { if (!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+function escAttr(s) { if (!s) return ''; return s.replace(/'/g, "\\'") }
+
+// ── Init ──────────────────────────────────────────────────
+applyI18n()
+loadAll()
+</script>
+</body>
+</html>

@@ -333,8 +333,15 @@
     <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
     <div class="nav-links">
         <a class="nav-link active" href="index.html" id="nav-board">Board</a>
+        <a class="nav-link" href="weekly.html" id="nav-weekly">Haftalık</a>
         <a class="nav-link" href="dashboard.html" id="nav-dashboard">Dashboard</a>
         <a class="nav-link" href="monthly.html" id="nav-monthly">Aylık</a>
+        <a class="nav-link" href="habits.html" id="nav-habits">Alışkanlıklar</a>
+        <a class="nav-link" href="cashflow.html" id="nav-cashflow">Cashflow</a>
+        <a class="nav-link" href="notes.html" id="nav-notes">Notlar</a>
+        <a class="nav-link" href="timer.html"   id="nav-timer">Timer</a>
+        <a class="nav-link" href="journal.html" id="nav-journal">Günlük</a>
+        <a class="nav-link" href="goals.html"   id="nav-goals">Hedefler</a>
     </div>
     <div style="display:flex;align-items:center;-webkit-app-region:no-drag;">
         <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
@@ -390,7 +397,10 @@
 
     <div class="bottom-bar">
         <button class="btn-primary" onclick="openModal()" id="btn-new-task">+ Yeni Görev</button>
-        <span id="progress-text" style="font-size:0.75rem;color:var(--muted-text);"></span>
+        <button class="btn-ghost btn-focus-btn" onclick="openFocus()" id="btn-focus">⋅ Odak</button>
+        <span id="progress-text" style="font-size:0.75rem;color:var(--muted-text);flex:1;"></span>
+        <button class="btn-tiny" id="btn-export" onclick="doExport()">↓ Yedek</button>
+        <button class="btn-tiny" id="btn-import" onclick="doImport()">↑ Yükle</button>
     </div>
 
     <main class="kanban-board">
@@ -425,6 +435,15 @@
         <h2 id="modal-title">Yeni Görev Ekle</h2>
         <input type="text" id="task-input" placeholder="Ne yapacaksın?">
         <div class="modal-field">
+            <label class="modal-field-label" id="modal-priority-label">Öncelik</label>
+            <div class="priority-selector">
+                <button class="priority-btn p-none active" data-p="" onclick="setPriority('')" id="pbtn-none">— Yok</button>
+                <button class="priority-btn p-low"    data-p="low"    onclick="setPriority('low')"    id="pbtn-low">&#9660; Düşük</button>
+                <button class="priority-btn p-medium" data-p="medium" onclick="setPriority('medium')" id="pbtn-medium">&#9679; Orta</button>
+                <button class="priority-btn p-high"   data-p="high"   onclick="setPriority('high')"   id="pbtn-high">&#9650; Yüksek</button>
+            </div>
+        </div>
+        <div class="modal-field">
             <label class="modal-field-label" id="modal-deadline-label">Son Tarih (opsiyonel)</label>
             <input type="date" id="task-deadline" class="modal-deadline-input">
         </div>
@@ -445,13 +464,31 @@
     </div>
 </div>
 
+<!-- Focus Overlay -->
+<div id="focus-overlay">
+    <div class="focus-top">
+        <div class="focus-top-date" id="focus-top-date"></div>
+        <div class="focus-top-label" id="focus-top-label">ODAK</div>
+    </div>
+    <div class="focus-task-list" id="focus-task-list"></div>
+    <div class="focus-empty" id="focus-empty" style="display:none;"></div>
+    <div class="focus-exit-hint" id="focus-exit-hint" onclick="closeFocus()">ESC — Çıkış</div>
+    <div class="focus-bg-clock" id="focus-bg-clock">00:00</div>
+</div>
+
 <script>
     // ── i18n init ─────────────────────────────────────────
     function applyI18n() {
         document.getElementById('nav-board').textContent       = t('nav_board')
+        document.getElementById('nav-weekly').textContent      = t('nav_weekly')
         document.getElementById('nav-dashboard').textContent   = t('nav_dashboard')
         document.getElementById('nav-monthly').textContent     = t('nav_monthly')
-        document.getElementById('lang-toggle').textContent     = t('lang_switch')
+        document.getElementById('nav-habits').textContent      = t('nav_habits')
+        document.getElementById('nav-cashflow').textContent     = t('nav_cashflow')
+        document.getElementById('nav-notes').textContent        = t('nav_notes')
+        document.getElementById('nav-timer').textContent        = t('nav_timer')
+        document.getElementById('nav-journal').textContent      = t('nav_journal')
+        document.getElementById('nav-goals').textContent        = t('nav_goals')
         document.getElementById('win-min').title               = t('win_minimize')
         document.getElementById('win-max').title               = t('win_maximize')
         document.getElementById('win-close').title             = t('win_close')
@@ -459,10 +496,18 @@
         document.getElementById('future-badge').textContent    = t('plan_badge')
         document.getElementById('btn-new-task').textContent    = t('new_task_btn')
         document.getElementById('btn-search-bar').textContent  = '⌕ ' + t('search_btn')
+        document.getElementById('btn-focus').textContent       = t('btn_focus')
+        document.getElementById('btn-export').textContent      = t('btn_export')
+        document.getElementById('btn-import').textContent      = t('btn_import')
         document.getElementById('col-todo-label').textContent  = t('col_todo')
         document.getElementById('col-doing-label').textContent = t('col_doing')
         document.getElementById('col-done-label').textContent  = t('col_done')
-        document.getElementById('modal-deadline-label').textContent = t('modal_deadline_label')
+        document.getElementById('modal-priority-label').textContent  = t('modal_priority_label')
+        document.getElementById('pbtn-none').textContent       = t('priority_none')
+        document.getElementById('pbtn-low').textContent        = '▼ ' + t('priority_low')
+        document.getElementById('pbtn-medium').textContent     = '● ' + t('priority_medium')
+        document.getElementById('pbtn-high').textContent       = '▲ ' + t('priority_high')
+        document.getElementById('modal-deadline-label').textContent  = t('modal_deadline_label')
         document.getElementById('task-input').placeholder      = t('modal_task_ph')
         document.getElementById('task-note').placeholder       = t('modal_note_ph')
         document.getElementById('modal-cancel-btn').textContent= t('btn_cancel')
@@ -471,32 +516,31 @@
         document.getElementById('search-input').placeholder    = t('search_ph')
         document.getElementById('search-hint').textContent     = t('search_hint')
         document.getElementById('streak-suffix').textContent   = t('streak_suffix')
-        document.getElementById('habits-label') && (document.getElementById('habits-label').textContent = t('habits_title'))
+        document.getElementById('focus-top-label').textContent = t('focus_title')
+        document.getElementById('focus-exit-hint').textContent = t('focus_exit_hint')
+        document.getElementById('focus-empty').textContent     = t('focus_no_tasks')
         const hEdit = document.getElementById('btn-habit-settings')
         if (hEdit && !hEdit.classList.contains('active')) hEdit.textContent = t('habits_edit')
         const hAdd = document.getElementById('btn-habit-add')
         if (hAdd) hAdd.textContent = t('habits_add')
-        const hInp = document.getElementById('habit-input')
-        if (hInp) hInp.placeholder = t('habit_ph')
     }
 
     // ── State ──────────────────────────────────────────────
     const MIN_DATE    = '2026-04-14'
-    const MAX_FUTURE  = 365   // days ahead allowed for planning
+    const MAX_FUTURE  = 365
     let currentDate   = todayStr()
     let currentBoard  = null
     let tasks         = []
     let draggedId     = null
     let isEditing     = false
     let editingTaskId = null
+    let modalPriority = null
 
     // ── Date helpers ───────────────────────────────────────
-    function todayStr() {
-        return new Date().toISOString().slice(0, 10)
-    }
+    function todayStr() { return new Date().toISOString().slice(0, 10) }
 
     function offsetDate(dateStr, days) {
-        const d = new Date(dateStr)
+        const d = new Date(dateStr + 'T12:00:00')
         d.setDate(d.getDate() + days)
         return d.toISOString().slice(0, 10)
     }
@@ -548,7 +592,8 @@
 
         tasks.forEach(task => {
             const card = document.createElement('div')
-            card.className = 'task-card'
+            const pCls = task.priority ? ` priority-${task.priority}` : ''
+            card.className = `task-card${pCls}`
             card.draggable = true
             card.dataset.id = task.id
             card.ondragstart = drag
@@ -560,20 +605,17 @@
             const deadlineHtml = hasDeadline
                 ? `<div class="task-deadline${isOverdue ? ' overdue' : ''}">
                        ${isOverdue ? t('overdue_label') : '📅 ' + formatDeadline(task.deadline)}
-                   </div>`
-                : ''
+                   </div>` : ''
 
             const noteHtml = hasNote
                 ? `<details class="task-note-section">
                        <summary>${t('note_toggle_show')}</summary>
                        <div class="task-note-body">${escapeHtml(task.note)}</div>
-                   </details>`
-                : ''
+                   </details>` : ''
 
             card.innerHTML = `
                 <div class="task-content" ondblclick="startEdit(${task.id})">${escapeHtml(task.content)}</div>
-                ${deadlineHtml}
-                ${noteHtml}
+                ${deadlineHtml}${noteHtml}
                 <div class="task-actions">
                     <button class="btn-order" onclick="reorderCard(${task.id},'up')" title="↑">&#8593;</button>
                     <button class="btn-order" onclick="reorderCard(${task.id},'down')" title="↓">&#8595;</button>
@@ -590,38 +632,27 @@
         document.getElementById('done-count').innerText  = done
         document.getElementById('main-progress').style.width = total ? `${(done / total) * 100}%` : '0%'
         document.getElementById('progress-text').innerText = total
-            ? `${done}/${total} ${t('completed_of')}`
-            : ''
+            ? `${done}/${total} ${t('completed_of')}` : ''
         document.getElementById('date-display').innerText = formatDateDisplay(currentDate)
 
-        // Future planning: allow up to MAX_FUTURE days ahead
         const maxDate = offsetDate(todayStr(), MAX_FUTURE)
         const atMax   = currentDate >= maxDate
-        document.getElementById('next-day').disabled     = atMax
+        document.getElementById('next-day').disabled      = atMax
         document.getElementById('next-day').style.opacity = atMax ? '0.3' : '1'
-
         const atMin = offsetDate(currentDate, -1) < MIN_DATE
-        document.getElementById('prev-day').disabled     = atMin
+        document.getElementById('prev-day').disabled      = atMin
         document.getElementById('prev-day').style.opacity = atMin ? '0.3' : '1'
 
-        // Future badge
         const isFuture = currentDate > todayStr()
         document.getElementById('future-badge').classList.toggle('visible', isFuture)
     }
 
     // ── Drag & Drop ────────────────────────────────────────
-    function allowDrop(ev) {
-        ev.preventDefault()
-        ev.currentTarget.classList.add('drag-over')
-    }
+    function allowDrop(ev) { ev.preventDefault(); ev.currentTarget.classList.add('drag-over') }
     function dragLeave(ev) { ev.currentTarget.classList.remove('drag-over') }
-    function drag(ev) {
-        draggedId = ev.currentTarget.dataset.id
-        ev.currentTarget.classList.add('dragging')
-    }
+    function drag(ev) { draggedId = ev.currentTarget.dataset.id; ev.currentTarget.classList.add('dragging') }
     async function drop(ev) {
-        ev.preventDefault()
-        ev.currentTarget.classList.remove('drag-over')
+        ev.preventDefault(); ev.currentTarget.classList.remove('drag-over')
         if (!draggedId) return
         const newStatus = ev.currentTarget.id
         const task = tasks.find(t2 => t2.id == draggedId)
@@ -636,15 +667,25 @@
         document.querySelectorAll('.task-card.dragging').forEach(c => c.classList.remove('dragging'))
     })
 
-    // ── Modal (Add / Edit) ─────────────────────────────────
+    // ── Priority selector ──────────────────────────────────
+    function setPriority(val) {
+        modalPriority = val || null
+        document.querySelectorAll('.priority-btn').forEach(btn => {
+            btn.classList.remove('active')
+            if (btn.dataset.p === (val || '')) btn.classList.add('active')
+        })
+    }
+
+    // ── Modal ──────────────────────────────────────────────
     function openModal() {
         editingTaskId = null
-        document.getElementById('modal-title').textContent      = t('modal_title_add')
-        document.getElementById('modal-save-btn').textContent   = t('btn_add')
-        document.getElementById('task-input').value             = ''
-        document.getElementById('task-deadline').value          = ''
-        document.getElementById('task-note').value              = ''
-        document.getElementById('task-modal').style.display     = 'flex'
+        document.getElementById('modal-title').textContent     = t('modal_title_add')
+        document.getElementById('modal-save-btn').textContent  = t('btn_add')
+        document.getElementById('task-input').value            = ''
+        document.getElementById('task-deadline').value         = ''
+        document.getElementById('task-note').value             = ''
+        setPriority('')
+        document.getElementById('task-modal').style.display    = 'flex'
         document.getElementById('task-input').focus()
     }
 
@@ -652,12 +693,13 @@
         const task = tasks.find(t2 => t2.id === taskId)
         if (!task) return
         editingTaskId = taskId
-        document.getElementById('modal-title').textContent      = t('modal_title_edit')
-        document.getElementById('modal-save-btn').textContent   = t('btn_save')
-        document.getElementById('task-input').value             = task.content
-        document.getElementById('task-deadline').value          = task.deadline || ''
-        document.getElementById('task-note').value              = task.note || ''
-        document.getElementById('task-modal').style.display     = 'flex'
+        document.getElementById('modal-title').textContent     = t('modal_title_edit')
+        document.getElementById('modal-save-btn').textContent  = t('btn_save')
+        document.getElementById('task-input').value            = task.content
+        document.getElementById('task-deadline').value         = task.deadline || ''
+        document.getElementById('task-note').value             = task.note || ''
+        setPriority(task.priority || '')
+        document.getElementById('task-modal').style.display    = 'flex'
         document.getElementById('task-input').focus()
     }
 
@@ -666,24 +708,25 @@
         document.getElementById('task-input').value         = ''
         document.getElementById('task-deadline').value      = ''
         document.getElementById('task-note').value          = ''
+        setPriority('')
         editingTaskId = null
     }
 
     async function saveTaskFromModal() {
-        const input    = document.getElementById('task-input')
-        const content  = input.value.trim()
+        const input   = document.getElementById('task-input')
+        const content = input.value.trim()
         if (!content) return
         const deadline = document.getElementById('task-deadline').value   || null
         const note     = document.getElementById('task-note').value.trim() || null
+        const priority = modalPriority
 
         if (editingTaskId) {
-            await window.flowAPI.updateTaskFull(editingTaskId, { content, deadline, note })
+            await window.flowAPI.updateTaskFull(editingTaskId, { content, deadline, note, priority })
             const task = tasks.find(t2 => t2.id === editingTaskId)
-            if (task) { task.content = content; task.deadline = deadline; task.note = note }
+            if (task) { task.content = content; task.deadline = deadline; task.note = note; task.priority = priority }
         } else {
             const saved = await window.flowAPI.saveTask({
-                board_id: currentBoard.id,
-                content, status: 'todo', deadline, note
+                board_id: currentBoard.id, content, status: 'todo', deadline, note, priority
             })
             tasks.push(saved)
         }
@@ -712,12 +755,10 @@
         const contentEl = card.querySelector('.task-content')
         const task = tasks.find(t2 => t2.id === taskId)
         if (!task) { isEditing = false; return }
-
         const original = task.content
         contentEl.innerHTML = `<input class="task-edit-input" type="text" value="${escapeAttr(task.content)}">`
         const inp = contentEl.querySelector('input')
         inp.focus(); inp.select()
-
         let done = false
         async function commit() {
             if (done) return; done = true; isEditing = false
@@ -750,19 +791,16 @@
     // ── Global keyboard shortcuts ─────────────────────────
     document.addEventListener('keydown', e => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-            e.preventDefault()
-            searchOpen ? closeSearch() : openSearch()
+            e.preventDefault(); searchOpen ? closeSearch() : openSearch()
         }
         if (e.key === 'Escape') {
+            if (focusOpen)  { closeFocus();  return }
             if (searchOpen) { closeSearch(); return }
             if (document.getElementById('task-modal').style.display === 'flex') closeModal()
         }
     })
 
-    // ── Modal overlay click ────────────────────────────────
-    document.getElementById('task-modal').addEventListener('click', e => {
-        if (e.target === e.currentTarget) closeModal()
-    })
+    document.getElementById('task-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal() })
     document.getElementById('task-input').addEventListener('keydown', e => {
         if (e.key === 'Enter') saveTaskFromModal()
         if (e.key === 'Escape') closeModal()
@@ -783,21 +821,17 @@
         document.getElementById('search-results').innerHTML = ''
         document.getElementById('search-input').focus()
     }
-
     function closeSearch() {
         searchOpen = false
         document.getElementById('search-overlay').classList.remove('visible')
     }
-
     document.getElementById('search-overlay').addEventListener('click', e => {
         if (e.target === e.currentTarget) closeSearch()
     })
-
     document.getElementById('search-input').addEventListener('input', e => {
         clearTimeout(searchTimeout)
         searchTimeout = setTimeout(() => doSearch(e.target.value.trim()), 220)
     })
-
     async function doSearch(query) {
         const resultsEl = document.getElementById('search-results')
         if (!query) { resultsEl.innerHTML = ''; return }
@@ -812,9 +846,8 @@
             const statusCls = task.status === 'done' ? 'done' : task.status === 'doing' ? 'doing' : 'todo'
             const statusIco = task.status === 'done' ? '✓' : task.status === 'doing' ? '●' : '○'
             const dateStr   = task.boardDate ? formatDateDisplay(task.boardDate) : ''
-            const dlBadge   = isOv
-                ? `<span class="sr-overdue">${t('overdue_label')}</span>`
-                : (task.deadline ? `📅 ${formatDeadline(task.deadline)}` : '')
+            const dlBadge   = isOv ? `<span class="sr-overdue">${t('overdue_label')}</span>`
+                              : (task.deadline ? `📅 ${formatDeadline(task.deadline)}` : '')
             return `<div class="search-result-item" onclick="navigateToDate('${task.boardDate}')">
                         <span class="sr-status ${statusCls}">${statusIco}</span>
                         <div class="sr-content">
@@ -824,10 +857,98 @@
                     </div>`
         }).join('')
     }
-
     function navigateToDate(date) {
         closeSearch()
         if (date) { loadBoard(date); loadHabits() }
+    }
+
+    // ── Focus Mode ─────────────────────────────────────────
+    let focusOpen    = false
+    let focusClock   = null
+    let focusTasks   = []
+    let focusBoard   = null
+
+    async function openFocus() {
+        focusOpen = true
+        const overlay = document.getElementById('focus-overlay')
+        overlay.classList.add('visible')
+
+        // Always load TODAY's tasks for focus
+        const today = todayStr()
+        focusBoard = await window.flowAPI.getOrCreateBoard(today)
+        focusTasks = await window.flowAPI.getTasks(focusBoard.id)
+
+        document.getElementById('focus-top-date').textContent = formatDateDisplay(today)
+        renderFocusTasks()
+
+        // Live clock
+        function tick() {
+            const now = new Date()
+            const hh  = String(now.getHours()).padStart(2, '0')
+            const mm  = String(now.getMinutes()).padStart(2, '0')
+            document.getElementById('focus-bg-clock').textContent = `${hh}:${mm}`
+        }
+        tick()
+        focusClock = setInterval(tick, 10000)
+    }
+
+    function closeFocus() {
+        focusOpen = false
+        document.getElementById('focus-overlay').classList.remove('visible')
+        clearInterval(focusClock)
+        focusClock = null
+        // Refresh board if we were on today
+        if (currentDate === todayStr()) {
+            loadBoard(currentDate)
+        }
+    }
+
+    function renderFocusTasks() {
+        const pending = focusTasks.filter(t2 => t2.status !== 'done')
+        const listEl  = document.getElementById('focus-task-list')
+        const emptyEl = document.getElementById('focus-empty')
+        listEl.innerHTML = ''
+        if (pending.length === 0) {
+            emptyEl.style.display = 'block'
+            return
+        }
+        emptyEl.style.display = 'none'
+        const today = todayStr()
+        pending.forEach(task => {
+            const item = document.createElement('div')
+            item.className = `focus-task-item${task.status === 'doing' ? ' is-doing' : ''}`
+            const ico = task.status === 'doing' ? '●' : '○'
+            const dl  = task.deadline && task.deadline < today && task.status !== 'done'
+                        ? `<span class="focus-task-deadline">${t('overdue_label')}</span>` : ''
+            item.innerHTML = `
+                <span class="focus-task-status">${ico}</span>
+                <span class="focus-task-text">${escapeHtml(task.content)}</span>
+                ${dl}`
+            item.onclick = async () => {
+                const newStatus = task.status === 'doing' ? 'done' : 'doing'
+                await window.flowAPI.updateTaskStatus(task.id, newStatus)
+                task.status = newStatus
+                renderFocusTasks()
+            }
+            listEl.appendChild(item)
+        })
+    }
+
+    // ── Export / Import ────────────────────────────────────
+    async function doExport() {
+        const res = await window.flowAPI.exportData()
+        if (res && res.success) alert(t('export_ok'))
+    }
+
+    async function doImport() {
+        if (!confirm(t('import_confirm'))) return
+        const res = await window.flowAPI.importData()
+        if (res && res.success) {
+            alert(t('import_ok'))
+            location.reload()
+        } else if (res && !res.success && res.error) {
+            alert(`${t('import_fail')} ${res.error}`)
+        }
     }
 
     // ── XSS guards ────────────────────────────────────────
@@ -841,8 +962,8 @@
     }
 
     // ── Habits ─────────────────────────────────────────────
-    let habits       = []
-    let habitLogs    = []
+    let habits        = []
+    let habitLogs     = []
     let habitEditMode = false
 
     async function loadHabits() {
@@ -856,25 +977,20 @@
         const panel = document.getElementById('habits-panel')
         list.innerHTML = ''
         panel.classList.toggle('edit-mode', habitEditMode)
-
         if (habits.length === 0) {
             list.innerHTML = `<span style="font-size:0.75rem;color:#444;">${t('no_habits')}</span>`
             return
         }
-
         habits.forEach(habit => {
             const log  = habitLogs.find(l => l.habit_id === habit.id)
             const done = log?.completed === true
-
             const chip = document.createElement('div')
             chip.className = 'habit-chip' + (done ? ' done' : '')
             chip.innerHTML = `
                 <span class="habit-check">${done ? '✓' : '○'}</span>
                 <span>${escapeHtml(habit.name)}</span>
                 <button class="habit-del" title="${t('habit_del_title')}" onclick="removeHabit(${habit.id}, event)">✕</button>`
-            if (!habitEditMode) {
-                chip.onclick = () => toggleHabit(habit.id, !done)
-            }
+            if (!habitEditMode) { chip.onclick = () => toggleHabit(habit.id, !done) }
             list.appendChild(chip)
         })
     }
@@ -893,13 +1009,11 @@
         document.getElementById('habit-input').focus()
         document.getElementById('btn-habit-add').style.display = 'none'
     }
-
     function hideHabitInput() {
         document.getElementById('habit-add-row').style.display = 'none'
         document.getElementById('habit-input').value = ''
         document.getElementById('btn-habit-add').style.display = ''
     }
-
     async function confirmAddHabit() {
         const name = document.getElementById('habit-input').value.trim()
         if (!name) return
@@ -908,7 +1022,6 @@
         hideHabitInput()
         renderHabits()
     }
-
     async function removeHabit(habitId, e) {
         e.stopPropagation()
         if (!confirm(t('habit_del_confirm'))) return
@@ -917,7 +1030,6 @@
         habitLogs = habitLogs.filter(l => l.habit_id !== habitId)
         renderHabits()
     }
-
     function toggleHabitEdit() {
         habitEditMode = !habitEditMode
         const btn = document.getElementById('btn-habit-settings')
@@ -931,8 +1043,7 @@
         try {
             const overdue = await window.flowAPI.getOverdueTasks()
             if (overdue && overdue.length > 0) {
-                const body = t('notif_overdue_body')(overdue.length)
-                await window.flowAPI.sendNotification(t('notif_overdue_title'), body)
+                await window.flowAPI.sendNotification(t('notif_overdue_title'), t('notif_overdue_body')(overdue.length))
             }
         } catch {}
     }

@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>flow. — A productivity desktop built for focus</title>
+  <meta name="description" content="Kanban, habits, deep work timer, journal, goals, and finances — all in one offline-first desktop app. No cloud. No account. No subscription.">
+  <meta property="og:title" content="flow. — A productivity desktop built for focus">
+  <meta property="og:description" content="One app for everything that matters. Local-first. Free.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://lumeworks.co/flow">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#000000">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&family=K2D:wght@700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #000000;
+      --fg:       #ffffff;
+      --text:     #c8c8c8;
+      --muted:    #999999;
+      --dim:      #666666;
+      --ghost:    #484848;
+      --rule:     #1c1c1c;
+      --rule-hi:  #2a2a2a;
+      --sans:     'Inter', system-ui, -apple-system, sans-serif;
+      --brand:    'K2D', sans-serif;
+    }
+
+    html {
+      background: var(--bg);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Navigation ──────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 22px 52px;
+      transition: border-color 0.4s ease, background 0.4s ease;
+      border-bottom: 1px solid transparent;
+    }
+
+    nav.scrolled {
+      border-color: var(--rule-hi);
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .nav-brand {
+      font-family: var(--brand);
+      font-weight: 800;
+      font-size: 1.4rem;
+      letter-spacing: -0.5px;
+      color: var(--fg);
+      line-height: 1;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 36px;
+    }
+
+    .nav-link {
+      font-size: 0.62rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: var(--muted);
+      transition: color 0.15s;
+    }
+
+    .nav-link:hover { color: var(--fg); }
+
+    .btn-nav {
+      display: inline-block;
+      font-family: var(--sans);
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--bg);
+      background: var(--fg);
+      border: 1px solid var(--fg);
+      padding: 10px 24px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-nav:hover { background: #d0d0d0; border-color: #d0d0d0; }
+
+    /* ── Hero ───────────────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 140px 48px 100px;
+      position: relative;
+      /* subtle radial depth */
+      background: radial-gradient(ellipse 80% 60% at 50% 45%, #0e0e0e 0%, #000 70%);
+    }
+
+    /* fine dot grid texture */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, #1a1a1a 1px, transparent 1px);
+      background-size: 36px 36px;
+      pointer-events: none;
+      opacity: 0.45;
+      mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 100%);
+    }
+
+    .hero-label {
+      position: relative;
+      font-size: 0.58rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 5px;
+      color: var(--ghost);
+      margin-bottom: 48px;
+      animation: up 0.9s ease both;
+    }
+
+    .hero-wordmark {
+      position: relative;
+      font-family: var(--brand);
+      font-weight: 800;
+      font-size: clamp(80px, 18vw, 224px);
+      letter-spacing: -6px;
+      line-height: 0.85;
+      color: var(--fg);
+      margin-bottom: 48px;
+      user-select: none;
+    }
+
+    .hero-tagline {
+      position: relative;
+      font-size: clamp(0.75rem, 1.3vw, 0.95rem);
+      font-weight: 500;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 24px;
+      animation: up 0.9s 0.12s ease both;
+    }
+
+    .hero-divider {
+      position: relative;
+      width: 24px;
+      height: 1px;
+      background: var(--rule-hi);
+      margin: 0 auto 32px;
+      animation: up 0.9s 0.15s ease both;
+    }
+
+    .hero-sub {
+      position: relative;
+      max-width: 440px;
+      font-size: 0.93rem;
+      font-weight: 400;
+      font-style: italic;
+      color: var(--dim);
+      line-height: 1.9;
+      margin-bottom: 52px;
+      animation: up 0.9s 0.18s ease both;
+    }
+
+    .hero-actions {
+      position: relative;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      animation: up 0.9s 0.24s ease both;
+    }
+
+    .btn-primary {
+      display: inline-block;
+      font-family: var(--sans);
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--bg);
+      background: var(--fg);
+      border: 1px solid var(--fg);
+      padding: 16px 32px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-primary:hover { background: #d0d0d0; border-color: #d0d0d0; }
+
+    .btn-ghost {
+      display: inline-block;
+      font-family: var(--sans);
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--dim);
+      border: 1px solid var(--rule-hi);
+      padding: 16px 32px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      background: transparent;
+    }
+
+    .btn-ghost:hover { border-color: #444; color: #999; }
+
+    .hero-scroll-hint {
+      position: absolute;
+      bottom: 44px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      animation: up 0.9s 0.5s ease both;
+    }
+
+    .scroll-line {
+      width: 1px;
+      height: 36px;
+      background: linear-gradient(to bottom, transparent, var(--ghost));
+      animation: pulse-line 2.4s ease-in-out infinite;
+    }
+
+    .scroll-label {
+      font-size: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--ghost);
+    }
+
+    @keyframes pulse-line {
+      0%, 100% { opacity: 0.25; }
+      50%       { opacity: 0.8; }
+    }
+
+    @keyframes up {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Section scaffold ───────────────────────────────────────── */
+    .section {
+      border-top: 1px solid var(--rule);
+      padding: 96px 52px;
+    }
+
+    .section-inner {
+      max-width: 880px;
+      margin: 0 auto;
+    }
+
+    .section-eyebrow {
+      font-size: 0.56rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      color: var(--ghost);
+      margin-bottom: 56px;
+    }
+
+    /* ── Features ──────────────────────────────────────────────────── */
+    .feature-list {
+      list-style: none;
+    }
+
+    .feature-item {
+      display: grid;
+      grid-template-columns: 40px 180px 1fr;
+      gap: 36px;
+      align-items: baseline;
+      padding: 32px 0;
+      border-bottom: 1px solid var(--rule);
+      transition: border-color 0.2s;
+    }
+
+    .feature-item:first-child {
+      border-top: 1px solid var(--rule);
+    }
+
+    .feature-item:hover {
+      border-bottom-color: var(--rule-hi);
+    }
+
+    .feature-num {
+      font-size: 0.54rem;
+      font-weight: 500;
+      color: var(--ghost);
+      letter-spacing: 1px;
+      font-variant-numeric: tabular-nums;
+      padding-top: 2px;
+    }
+
+    .feature-name {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--fg);
+    }
+
+    .feature-desc {
+      font-size: 0.9rem;
+      font-weight: 400;
+      color: var(--dim);
+      line-height: 1.75;
+    }
+
+    /* ── Manifesto ──────────────────────────────────────────────────── */
+    .manifesto-section {
+      border-top: 1px solid var(--rule);
+      padding: 120px 52px;
+      background: #030303;
+    }
+
+    .manifesto-inner {
+      max-width: 640px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .manifesto-text {
+      font-size: clamp(1.05rem, 2vw, 1.45rem);
+      font-weight: 400;
+      line-height: 2;
+      color: var(--ghost);
+    }
+
+    .manifesto-text strong {
+      color: var(--fg);
+      font-weight: 700;
+    }
+
+    .manifesto-divider {
+      width: 28px;
+      height: 1px;
+      background: var(--rule-hi);
+      margin: 52px auto;
+    }
+
+    .manifesto-principles {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+      margin-top: 64px;
+    }
+
+    .principle {
+      border: 1px solid var(--rule);
+      padding: 32px 24px;
+      text-align: left;
+      background: var(--bg);
+      transition: border-color 0.2s;
+    }
+
+    .principle:hover { border-color: var(--rule-hi); }
+
+    .principle-title {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--fg);
+      margin-bottom: 14px;
+    }
+
+    .principle-body {
+      font-size: 0.85rem;
+      font-weight: 400;
+      color: var(--dim);
+      line-height: 1.7;
+    }
+
+    /* ── Download CTA ────────────────────────────────────────────────── */
+    .download-section {
+      border-top: 1px solid var(--rule);
+      padding: 120px 52px;
+      text-align: center;
+    }
+
+    .download-pre {
+      font-size: 0.56rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 5px;
+      color: var(--ghost);
+      margin-bottom: 28px;
+    }
+
+    .download-title {
+      font-family: var(--brand);
+      font-weight: 800;
+      font-size: clamp(56px, 9vw, 112px);
+      letter-spacing: -3px;
+      line-height: 0.9;
+      margin-bottom: 56px;
+      color: var(--fg);
+    }
+
+    .download-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .download-btn {
+      display: inline-block;
+      font-family: var(--sans);
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: var(--bg);
+      background: var(--fg);
+      border: 1px solid var(--fg);
+      padding: 18px 44px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .download-btn:hover { background: #d0d0d0; border-color: #d0d0d0; }
+
+    .download-meta {
+      font-size: 0.58rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--ghost);
+    }
+
+    .platform-bar {
+      display: flex;
+      gap: 2px;
+      justify-content: center;
+      margin-top: 52px;
+    }
+
+    .platform-tag {
+      font-size: 0.54rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--ghost);
+      border: 1px solid var(--rule-hi);
+      padding: 9px 20px;
+    }
+
+    /* ── Footer ───────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--rule);
+      padding: 28px 52px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-brand {
+      font-family: var(--brand);
+      font-weight: 800;
+      font-size: 1rem;
+      color: var(--ghost);
+      letter-spacing: -0.3px;
+    }
+
+    .footer-by {
+      font-size: 0.54rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: var(--ghost);
+    }
+
+    .footer-copy {
+      font-size: 0.54rem;
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--ghost);
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      nav { padding: 18px 24px; }
+      .nav-link { display: none; }
+
+      .hero { padding: 110px 24px 80px; }
+      .hero-wordmark { letter-spacing: -3px; }
+
+      .section { padding: 72px 24px; }
+
+      .feature-item {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        padding: 28px 0;
+      }
+      .feature-num { display: none; }
+
+      .manifesto-section { padding: 72px 24px; }
+      .manifesto-principles { grid-template-columns: 1fr; }
+
+      .download-section { padding: 72px 24px; }
+      .download-title { letter-spacing: -2px; }
+
+      footer {
+        padding: 24px;
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .hero-actions { flex-direction: column; width: 100%; }
+      .btn-primary, .btn-ghost { width: 100%; text-align: center; }
+      .platform-bar { flex-wrap: wrap; }
+    }
+
+    /* ── Hero Canvas ──────────────────────────────────────────────── */
+    #hero-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* scan-line shimmer on wordmark */
+    @keyframes shimmer {
+      0%   { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+
+    .hero-wordmark {
+      background: linear-gradient(
+        105deg,
+        var(--fg) 40%,
+        #777 50%,
+        var(--fg) 60%
+      );
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: up 0.9s 0.06s ease both, shimmer 5s 1.2s linear infinite;
+    }
+
+    /* ── Platform Download Cards ──────────────────────────────────── */
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+      margin-top: 64px;
+    }
+
+    .platform-card {
+      border: 1px solid var(--rule);
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      text-align: left;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+
+    .platform-card.available {
+      border-color: var(--rule-hi);
+    }
+
+    .platform-card.available:hover {
+      border-color: #333;
+    }
+
+    .platform-card.soon {
+      opacity: 0.5;
+    }
+
+    .platform-os {
+      font-size: 0.58rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--fg);
+    }
+
+    .platform-version {
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--dim);
+      line-height: 1.5;
+      flex: 1;
+    }
+
+    .platform-formats {
+      font-size: 0.52rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--ghost);
+      margin-top: 4px;
+    }
+
+    .platform-dl-btn {
+      display: block;
+      margin-top: 12px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--bg);
+      background: var(--fg);
+      border: 1px solid var(--fg);
+      padding: 11px 18px;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .platform-dl-btn:hover { background: #d0d0d0; }
+
+    .platform-soon-lbl {
+      display: block;
+      margin-top: 12px;
+      font-size: 0.58rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--ghost);
+      border: 1px solid var(--rule-hi);
+      padding: 11px 18px;
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .platform-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 520px) {
+      .platform-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── Navigation ──────────────────────────────────────────── -->
+  <nav id="nav">
+    <span class="nav-brand">flow.</span>
+    <div class="nav-right">
+      <a class="nav-link" href="#features">Features</a>
+      <a class="nav-link" href="#download">Download</a>
+      <a class="btn-nav" href="#download">Get flow.</a>
+    </div>
+  </nav>
+
+  <!-- ── Hero ────────────────────────────────────────────────── -->
+  <section class="hero">
+    <canvas id="hero-canvas" aria-hidden="true"></canvas>
+    <p class="hero-label">By Lumeworks &nbsp;&middot;&nbsp; lumeworks.co &nbsp;/&nbsp; Version 1.0</p>
+    <h1 class="hero-wordmark">flow.</h1>
+    <p class="hero-tagline">Built for focus. Not for features.</p>
+    <div class="hero-divider"></div>
+    <p class="hero-sub">
+      Kanban, habits, deep work, journaling, goal tracking, and finances —
+      all in one offline-first desktop app.
+    </p>
+    <div class="hero-actions">
+      <a class="btn-primary" href="#download">Download for Windows</a>
+      <a class="btn-ghost" href="#features">See what's inside</a>
+    </div>
+
+    <div class="hero-scroll-hint" aria-hidden="true">
+      <div class="scroll-line"></div>
+      <span class="scroll-label">Scroll</span>
+    </div>
+  </section>
+
+  <!-- ── Features ────────────────────────────────────────────── -->
+  <section class="section" id="features">
+    <div class="section-inner">
+      <p class="section-eyebrow">What's inside</p>
+      <ul class="feature-list">
+        <li class="feature-item">
+          <span class="feature-num">01</span>
+          <span class="feature-name">Kanban</span>
+          <span class="feature-desc">Capture work. Organize into columns. Move forward without ceremony or overhead.</span>
+        </li>
+        <li class="feature-item">
+          <span class="feature-num">02</span>
+          <span class="feature-name">Habits</span>
+          <span class="feature-desc">Daily check-ins, streak tracking, and a heatmap that makes consistency visible over time.</span>
+        </li>
+        <li class="feature-item">
+          <span class="feature-num">03</span>
+          <span class="feature-name">Timer</span>
+          <span class="feature-desc">Structured deep work sessions built on the Pomodoro method. No distractions, no configuration noise.</span>
+        </li>
+        <li class="feature-item">
+          <span class="feature-num">04</span>
+          <span class="feature-name">Journal</span>
+          <span class="feature-desc">Write every day. Track mood. Review your entries on a calendar. Streaks keep you accountable.</span>
+        </li>
+        <li class="feature-item">
+          <span class="feature-num">05</span>
+          <span class="feature-name">Goals</span>
+          <span class="feature-desc">Set objectives. Define measurable key results. Track what actually moves the needle.</span>
+        </li>
+        <li class="feature-item">
+          <span class="feature-num">06</span>
+          <span class="feature-name">Cashflow</span>
+          <span class="feature-desc">Log income and fixed expenses. See your real monthly position without a spreadsheet.</span>
+        </li>
+        <li class="feature-item">
+          <span class="feature-num">07</span>
+          <span class="feature-name">Notes</span>
+          <span class="feature-desc">A persistent scratchpad. Freeform, searchable, always one click away.</span>
+        </li>
+        <li class="feature-item">
+          <span class="feature-num">08</span>
+          <span class="feature-name">Weekly</span>
+          <span class="feature-desc">The full seven-day picture — tasks, habits, and completion rate — at a single glance.</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── Manifesto ────────────────────────────────────────────── -->
+  <section class="manifesto-section">
+    <div class="manifesto-inner">
+      <p class="manifesto-text">
+        Most productivity apps sell you a <strong>system.</strong><br>
+        flow. gives you a <strong>surface.</strong>
+      </p>
+
+      <div class="manifesto-divider"></div>
+
+      <div class="manifesto-principles">
+        <div class="principle">
+          <p class="principle-title">Local-first</p>
+          <p class="principle-body">Your data is a single JSON file on your machine. No cloud, no sync conflicts, no latency.</p>
+        </div>
+        <div class="principle">
+          <p class="principle-title">No account</p>
+          <p class="principle-body">Download and open. No email. No password. No onboarding. It works the moment you start it.</p>
+        </div>
+        <div class="principle">
+          <p class="principle-title">Free</p>
+          <p class="principle-body">No subscription, no freemium wall, no upsell. Everything is included. Permanently.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Download CTA ─────────────────────────────────────────── -->
+  <section class="download-section" id="download">
+    <p class="download-pre">Available on your platform</p>
+    <h2 class="download-title">Get<br>flow.</h2>
+
+    <div class="download-actions">
+      <p class="download-meta">Free &nbsp;&middot;&nbsp; No sign-up &nbsp;&middot;&nbsp; Installs in seconds</p>
+    </div>
+
+    <div class="platform-grid">
+
+      <!-- Windows -->
+      <div class="platform-card available">
+        <span class="platform-os">Windows</span>
+        <span class="platform-version">Windows 10 &amp; 11 &mdash; x64<br>NSIS installer, portable option</span>
+        <span class="platform-formats">.exe &nbsp;&middot;&nbsp; ~85 MB</span>
+        <a class="platform-dl-btn" href="#">Download</a>
+      </div>
+
+      <!-- macOS -->
+      <div class="platform-card soon">
+        <span class="platform-os">macOS</span>
+        <span class="platform-version">macOS 12 Monterey+<br>Apple Silicon &amp; Intel universal</span>
+        <span class="platform-formats">.dmg &nbsp;&middot;&nbsp; Universal binary</span>
+        <span class="platform-soon-lbl">Coming soon</span>
+      </div>
+
+      <!-- Linux -->
+      <div class="platform-card soon">
+        <span class="platform-os">Linux</span>
+        <span class="platform-version">Ubuntu 20.04+, Debian &amp; derivatives<br>x64, ARM64</span>
+        <span class="platform-formats">.AppImage &nbsp;&middot;&nbsp; .deb</span>
+        <span class="platform-soon-lbl">Coming soon</span>
+      </div>
+
+      <!-- App Store -->
+      <div class="platform-card soon">
+        <span class="platform-os">App Store</span>
+        <span class="platform-version">Mac App Store<br>Sandboxed &middot; Auto-updates</span>
+        <span class="platform-formats">macOS 13+</span>
+        <span class="platform-soon-lbl">Coming soon</span>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Footer ───────────────────────────────────────────────── -->
+  <footer>
+    <span class="footer-brand">flow.</span>
+    <a class="footer-by" href="https://lumeworks.co" target="_blank" rel="noopener" style="text-decoration:none;">lumeworks.co</a>
+    <span class="footer-copy">&copy; 2026 Lumeworks</span>
+  </footer>
+
+  <script>
+    // ── Nav scroll state
+    const nav = document.getElementById('nav')
+    const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 40)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+
+    // ── Hero canvas: floating particle field
+    ;(function () {
+      const canvas = document.getElementById('hero-canvas')
+      const ctx = canvas.getContext('2d')
+      let W, H, pts = [], raf
+
+      function resize() {
+        W = canvas.width  = canvas.offsetWidth
+        H = canvas.height = canvas.offsetHeight
+      }
+
+      function mkPt() {
+        return {
+          x:  Math.random() * W,
+          y:  Math.random() * H,
+          vx: (Math.random() - 0.5) * 0.22,
+          vy: (Math.random() - 0.5) * 0.18,
+          r:  Math.random() * 1.0 + 0.25,
+          a:  Math.random() * 0.28 + 0.06,
+        }
+      }
+
+      function init() {
+        resize()
+        pts = Array.from({ length: 90 }, mkPt)
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H)
+        const LINK = 130
+        for (let i = 0; i < pts.length; i++) {
+          const p = pts[i]
+          p.x += p.vx
+          p.y += p.vy
+          if (p.x < -4) p.x = W + 4
+          if (p.x > W + 4) p.x = -4
+          if (p.y < -4) p.y = H + 4
+          if (p.y > H + 4) p.y = -4
+
+          // dot
+          ctx.beginPath()
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(255,255,255,${p.a})`
+          ctx.fill()
+
+          // connecting lines between close particles
+          for (let j = i + 1; j < pts.length; j++) {
+            const q = pts[j]
+            const dx = p.x - q.x, dy = p.y - q.y
+            const d = Math.sqrt(dx * dx + dy * dy)
+            if (d < LINK) {
+              const alpha = (1 - d / LINK) * 0.07
+              ctx.beginPath()
+              ctx.moveTo(p.x, p.y)
+              ctx.lineTo(q.x, q.y)
+              ctx.strokeStyle = `rgba(255,255,255,${alpha})`
+              ctx.lineWidth = 0.5
+              ctx.stroke()
+            }
+          }
+        }
+        raf = requestAnimationFrame(draw)
+      }
+
+      window.addEventListener('resize', () => {
+        cancelAnimationFrame(raf)
+        init()
+        draw()
+      })
+
+      init()
+      draw()
+
+      // ── Mouse parallax on wordmark
+      const wm = document.querySelector('.hero-wordmark')
+      document.querySelector('.hero').addEventListener('mousemove', e => {
+        const { clientWidth: cw, clientHeight: ch } = document.documentElement
+        const dx = (e.clientX / cw - 0.5) * -12
+        const dy = (e.clientY / ch - 0.5) * -6
+        wm.style.transform = `translate(${dx}px, ${dy}px)`
+      })
+      document.querySelector('.hero').addEventListener('mouseleave', () => {
+        wm.style.transform = 'translate(0,0)'
+      })
+      wm.style.transition = 'transform 0.6s cubic-bezier(0.23,1,0.32,1)'
+    })()
+  </script>
+
+</body>
+</html>
