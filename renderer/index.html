@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flow — Board</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        .board-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 16px;
+        }
+
+        .board-title {
+            font-weight: 800;
+            font-size: 2rem;
+            letter-spacing: -1.5px;
+            text-transform: uppercase;
+        }
+
+        .date-nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .date-nav button {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--muted-text);
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .date-nav button:hover {
+            color: var(--text-color);
+            border-color: var(--text-color);
+        }
+
+        #date-display {
+            font-size: 0.75rem;
+            color: var(--muted-text);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .kanban-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .column {
+            background: transparent;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .column-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 2px solid var(--text-color);
+            margin-bottom: 12px;
+        }
+
+        .column-header h2 {
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .column-header .count {
+            font-size: 0.85rem;
+            color: var(--muted-text);
+        }
+
+        .task-list {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 80px;
+            padding-bottom: 20px;
+        }
+
+        .task-list.drag-over {
+            background: rgba(255,255,255,0.02);
+            outline: 1px dashed var(--border-color);
+        }
+
+        .task-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 16px 18px;
+            cursor: grab;
+            transition: border-color 0.15s;
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        .task-card:hover { border-color: var(--accent-color); }
+        .task-card.dragging { opacity: 0.4; }
+
+        .task-content {
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .task-actions {
+            margin-top: 12px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn-delete {
+            background: transparent;
+            border: none;
+            color: #444;
+            cursor: pointer;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-delete:hover { color: #ff2222; }
+
+        .btn-order, .btn-edit {
+            background: transparent;
+            border: none;
+            color: #3a3a3a;
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 0 3px;
+            transition: color 0.15s;
+        }
+        .btn-order:hover, .btn-edit:hover { color: var(--text-color); }
+
+        .task-edit-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--accent-color);
+            color: var(--text-color);
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            padding: 2px 0;
+        }
+
+        .bottom-bar {
+            margin-top: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Habits panel */
+        .habits-panel {
+            margin-top: 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 14px 18px;
+        }
+
+        .habits-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .habits-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--muted-text);
+        }
+
+        .habits-controls {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn-habit-add, .btn-habit-settings {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--muted-text);
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .btn-habit-add:hover, .btn-habit-settings:hover {
+            color: var(--text-color); border-color: var(--text-color);
+        }
+        .btn-habit-settings.active {
+            color: var(--text-color); border-color: var(--text-color);
+        }
+
+        .habits-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .habit-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: var(--muted-text);
+            transition: border-color 0.15s, color 0.15s, background 0.15s;
+            user-select: none;
+        }
+
+        .habit-chip:hover { border-color: #555; color: var(--text-color); }
+
+        .habit-chip.done {
+            border-color: #2a5a2a;
+            background: rgba(90,170,90,0.08);
+            color: #7adf7a;
+        }
+
+        .habit-chip.done .habit-check { color: #5aab5a; }
+        .habit-check { font-size: 0.8rem; }
+
+        .habit-chip .habit-del {
+            display: none;
+            background: transparent;
+            border: none;
+            color: #555;
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 0;
+            margin-left: 4px;
+            line-height: 1;
+        }
+        .habit-chip .habit-del:hover { color: #ff2222; }
+        .habits-panel.edit-mode .habit-chip .habit-del { display: inline; }
+        .habits-panel.edit-mode .habit-chip { cursor: default; }
+
+        /* Modal */
+        #task-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 36px;
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .modal-content h2 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 24px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--border-color);
+            color: white;
+            padding: 12px 0;
+            font-size: 1.1rem;
+            outline: none;
+            margin-bottom: 28px;
+        }
+
+        input[type="text"]:focus { border-color: var(--accent-color); }
+
+        .modal-buttons { display: flex; gap: 10px; }
+
+        @media (max-width: 768px) {
+            .kanban-board { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="top-nav">
+    <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
+    <div class="nav-links">
+        <a class="nav-link active" href="index.html">Board</a>
+        <a class="nav-link" href="dashboard.html">Dashboard</a>
+        <a class="nav-link" href="monthly.html">Aylık</a>
+    </div>
+    <div class="win-controls">
+        <button class="win-btn" onclick="window.flowAPI.windowMinimize()" title="Küçült">&#8212;</button>
+        <button class="win-btn" onclick="window.flowAPI.windowMaximize()" title="Büyüt">&#9633;</button>
+        <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" title="Kapat">&#10005;</button>
+    </div>
+</nav>
+
+<div class="page-content">
+    <div class="board-header">
+        <div style="display:flex;align-items:center;gap:16px;">
+            <span class="board-title">Board</span>
+            <div class="streak-badge" id="streak-badge" title="">
+                <span class="streak-fire">&#128293;</span>
+                <span class="streak-count" id="streak-count">0</span>
+                <span class="streak-suffix">gün</span>
+            </div>
+        </div>
+        <div class="date-nav">
+            <button id="prev-day" title="Önceki gün">‹</button>
+            <div id="date-display">—</div>
+            <button id="next-day" title="Sonraki gün">›</button>
+        </div>
+    </div>
+
+    <div class="progress-container">
+        <div id="main-progress" class="progress-bar"></div>
+    </div>
+
+    <!-- Habits panel -->
+    <div class="habits-panel" id="habits-panel">
+        <div class="habits-header">
+            <span class="habits-label">Günlük Alışkanlıklar</span>
+            <div class="habits-controls">
+                <button class="btn-habit-settings" id="btn-habit-settings" onclick="toggleHabitEdit()" title="Düzenle">Düzenle</button>
+                <button class="btn-habit-add" id="btn-habit-add" onclick="showHabitInput()">+ Ekle</button>
+            </div>
+        </div>
+        <div id="habit-add-row" style="display:none;margin-bottom:10px;display:none;gap:6px;align-items:center;">
+            <input id="habit-input" type="text" placeholder="Alışkanlık adı..." style="flex:1;background:transparent;border:none;border-bottom:1px solid var(--border-color);color:var(--text-color);font-size:0.85rem;padding:4px 0;outline:none;" />
+            <button onclick="confirmAddHabit()" style="background:transparent;border:1px solid var(--border-color);color:var(--muted-text);font-size:0.7rem;padding:3px 8px;cursor:pointer;">Ekle</button>
+            <button onclick="hideHabitInput()" style="background:transparent;border:none;color:#555;font-size:0.85rem;cursor:pointer;">✕</button>
+        </div>
+        <div class="habits-list" id="habits-list"></div>
+    </div>
+
+    <div class="bottom-bar">
+        <button class="btn-primary" onclick="openModal()">+ Yeni Görev</button>
+        <span id="progress-text" style="font-size:0.75rem;color:var(--muted-text);"></span>
+    </div>
+
+    <main class="kanban-board">
+        <div class="column">
+            <div class="column-header">
+                <h2>Yapılacaklar</h2>
+                <span class="count" id="todo-count">0</span>
+            </div>
+            <div class="task-list" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+        </div>
+
+        <div class="column">
+            <div class="column-header">
+                <h2>Devam Eden</h2>
+                <span class="count" id="doing-count">0</span>
+            </div>
+            <div class="task-list" id="doing" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+        </div>
+
+        <div class="column">
+            <div class="column-header">
+                <h2>Tamamlanan</h2>
+                <span class="count" id="done-count">0</span>
+            </div>
+            <div class="task-list" id="done" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+        </div>
+    </main>
+</div>
+
+<div id="task-modal">
+    <div class="modal-content">
+        <h2>Yeni Görev Ekle</h2>
+        <input type="text" id="task-input" placeholder="Ne yapacaksın?">
+        <div class="modal-buttons">
+            <button class="btn-primary" onclick="addTask()">Ekle</button>
+            <button class="btn-ghost" onclick="closeModal()">İptal</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ── State ──────────────────────────────────────────────
+    const MIN_DATE = '2026-04-14'
+    let currentDate = todayStr()
+    let currentBoard = null
+    let tasks = []
+    let draggedId = null
+    let isEditing = false
+
+    // ── Date helpers ───────────────────────────────────────
+    function todayStr() {
+        return new Date().toISOString().slice(0, 10)
+    }
+
+    function offsetDate(dateStr, days) {
+        const d = new Date(dateStr)
+        d.setDate(d.getDate() + days)
+        return d.toISOString().slice(0, 10)
+    }
+
+    function formatDateDisplay(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00')
+        return d.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase()
+    }
+
+    // ── Board load ─────────────────────────────────────────
+    async function loadBoard(date) {
+        currentDate = date
+        currentBoard = await window.flowAPI.getOrCreateBoard(date)
+        tasks = await window.flowAPI.getTasks(currentBoard.id)
+        render()
+        loadStreak()
+    }
+
+    // ── Streak ─────────────────────────────────────────────
+    async function loadStreak() {
+        const streak = await window.flowAPI.getStreak()
+        const badge  = document.getElementById('streak-badge')
+        const count  = document.getElementById('streak-count')
+        count.innerText = streak.current
+        if (streak.current > 0) {
+            badge.classList.add('active')
+            badge.title = streak.current >= 7
+                ? `${streak.current} günlük muhteşem seri! 🔥 En iyi: ${streak.best} gün`
+                : `${streak.current} günlük seri! En iyi: ${streak.best} gün`
+        } else {
+            badge.classList.remove('active')
+            badge.title = `En iyi serin: ${streak.best} gün`
+        }
+    }
+
+    // ── Render ─────────────────────────────────────────────
+    function render() {
+        const cols = {
+            todo:  document.getElementById('todo'),
+            doing: document.getElementById('doing'),
+            done:  document.getElementById('done')
+        }
+        Object.values(cols).forEach(c => c.innerHTML = '')
+
+        tasks.forEach(task => {
+            const card = document.createElement('div')
+            card.className = 'task-card'
+            card.draggable = true
+            card.dataset.id = task.id
+            card.ondragstart = drag
+            card.innerHTML = `
+                <div class="task-content" ondblclick="startEdit(${task.id})">${escapeHtml(task.content)}</div>
+                <div class="task-actions">
+                    <button class="btn-order" onclick="reorderCard(${task.id},'up')" title="Yukarı">&#8593;</button>
+                    <button class="btn-order" onclick="reorderCard(${task.id},'down')" title="Aşağı">&#8595;</button>
+                    <button class="btn-edit" onclick="startEdit(${task.id})" title="Düzenle">&#9998;</button>
+                    <button class="btn-delete" onclick="deleteTask(${task.id})">Sil</button>
+                </div>`
+            cols[task.status]?.appendChild(card)
+        })
+
+        const done  = tasks.filter(t => t.status === 'done').length
+        const total = tasks.length
+        document.getElementById('todo-count').innerText  = tasks.filter(t => t.status === 'todo').length
+        document.getElementById('doing-count').innerText = tasks.filter(t => t.status === 'doing').length
+        document.getElementById('done-count').innerText  = done
+        document.getElementById('main-progress').style.width = total ? `${(done / total) * 100}%` : '0%'
+        document.getElementById('progress-text').innerText = total ? `${done}/${total} tamamlandı` : ''
+        document.getElementById('date-display').innerText = formatDateDisplay(currentDate)
+
+        // disable next-day button if already today
+        const atToday = currentDate >= todayStr()
+        document.getElementById('next-day').disabled = atToday
+        document.getElementById('next-day').style.opacity = atToday ? '0.3' : '1'
+
+        // disable prev-day button at min date
+        const atMin = offsetDate(currentDate, -1) < MIN_DATE
+        document.getElementById('prev-day').disabled = atMin
+        document.getElementById('prev-day').style.opacity = atMin ? '0.3' : '1'
+    }
+
+    // ── Drag & Drop ────────────────────────────────────────
+    function allowDrop(ev) {
+        ev.preventDefault()
+        ev.currentTarget.classList.add('drag-over')
+    }
+
+    function dragLeave(ev) {
+        ev.currentTarget.classList.remove('drag-over')
+    }
+
+    function drag(ev) {
+        draggedId = ev.currentTarget.dataset.id
+        ev.currentTarget.classList.add('dragging')
+    }
+
+    async function drop(ev) {
+        ev.preventDefault()
+        ev.currentTarget.classList.remove('drag-over')
+        if (!draggedId) return
+
+        const newStatus = ev.currentTarget.id
+        const task = tasks.find(t => t.id == draggedId)
+        if (task && task.status !== newStatus) {
+            task.status = newStatus
+            await window.flowAPI.updateTaskStatus(parseInt(draggedId), newStatus)
+            render()
+        }
+        draggedId = null
+    }
+
+    document.addEventListener('dragend', () => {
+        document.querySelectorAll('.task-card.dragging').forEach(c => c.classList.remove('dragging'))
+    })
+
+    // ── Task CRUD ──────────────────────────────────────────
+    function openModal() {
+        document.getElementById('task-modal').style.display = 'flex'
+        document.getElementById('task-input').focus()
+    }
+
+    function closeModal() {
+        document.getElementById('task-modal').style.display = 'none'
+        document.getElementById('task-input').value = ''
+    }
+
+    async function addTask() {
+        const input = document.getElementById('task-input')
+        const content = input.value.trim()
+        if (!content) return
+
+        const saved = await window.flowAPI.saveTask({
+            board_id: currentBoard.id,
+            content,
+            status: 'todo'
+        })
+        tasks.push(saved)
+        render()
+        closeModal()
+    }
+
+    async function deleteTask(id) {
+        await window.flowAPI.deleteTask(id)
+        tasks = tasks.filter(t => t.id !== id)
+        render()
+    }
+
+    // ── Reorder card ───────────────────────────────────────
+    async function reorderCard(taskId, direction) {
+        await window.flowAPI.reorderTask(taskId, direction)
+        tasks = await window.flowAPI.getTasks(currentBoard.id)
+        render()
+    }
+
+    // ── Inline edit ───────────────────────────────────────
+    function startEdit(taskId) {
+        if (isEditing) return
+        isEditing = true
+        const card = document.querySelector(`.task-card[data-id="${taskId}"]`)
+        if (!card) { isEditing = false; return }
+        const contentEl = card.querySelector('.task-content')
+        const task = tasks.find(t => t.id === taskId)
+        if (!task) { isEditing = false; return }
+
+        const original = task.content
+        contentEl.innerHTML = `<input class="task-edit-input" type="text" value="${escapeAttr(task.content)}">`
+        const input = contentEl.querySelector('input')
+        input.focus(); input.select()
+
+        let done = false
+        async function commit() {
+            if (done) return; done = true; isEditing = false
+            const val = input.value.trim()
+            if (val && val !== original) {
+                await window.flowAPI.updateTaskContent(taskId, val)
+                task.content = val
+            }
+            render()
+        }
+        function cancel() {
+            if (done) return; done = true; isEditing = false; render()
+        }
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter')  { e.preventDefault(); commit() }
+            if (e.key === 'Escape') cancel()
+        })
+        input.addEventListener('blur', commit)
+    }
+
+    // ── Date navigation ────────────────────────────────────
+    document.getElementById('prev-day').onclick = () => {
+        const prev = offsetDate(currentDate, -1)
+        if (prev >= MIN_DATE) { loadBoard(prev); loadHabits() }
+    }
+    document.getElementById('next-day').onclick = () => {
+        const next = offsetDate(currentDate, 1)
+        if (next <= todayStr()) { loadBoard(next); loadHabits() }
+    }
+
+    // ── Modal overlay close ────────────────────────────────
+    document.getElementById('task-modal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeModal()
+    })
+
+    // ── Enter key in modal ─────────────────────────────────
+    document.getElementById('task-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') addTask()
+        if (e.key === 'Escape') closeModal()
+    })
+
+    document.getElementById('habit-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter')  confirmAddHabit()
+        if (e.key === 'Escape') hideHabitInput()
+    })
+
+    // ── XSS guards ────────────────────────────────────────
+    function escapeHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    }
+    function escapeAttr(str) {
+        return str.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    }
+
+    // ── Habits ─────────────────────────────────────────────
+    let habits     = []
+    let habitLogs  = []
+    let habitEditMode = false
+
+    async function loadHabits() {
+        habits    = await window.flowAPI.getHabits()
+        habitLogs = await window.flowAPI.getHabitLogs(currentDate)
+        renderHabits()
+    }
+
+    function renderHabits() {
+        const list  = document.getElementById('habits-list')
+        const panel = document.getElementById('habits-panel')
+        list.innerHTML = ''
+        panel.classList.toggle('edit-mode', habitEditMode)
+
+        if (habits.length === 0) {
+            list.innerHTML = `<span style="font-size:0.75rem;color:#444;">Henüz alışkanlık yok. + Ekle butonuna bas.</span>`
+            return
+        }
+
+        habits.forEach(habit => {
+            const log  = habitLogs.find(l => l.habit_id === habit.id)
+            const done = log?.completed === true
+
+            const chip = document.createElement('div')
+            chip.className = 'habit-chip' + (done ? ' done' : '')
+            chip.innerHTML = `
+                <span class="habit-check">${done ? '✓' : '○'}</span>
+                <span>${escapeHtml(habit.name)}</span>
+                <button class="habit-del" title="Sil" onclick="removeHabit(${habit.id}, event)">✕</button>`
+
+            if (!habitEditMode) {
+                chip.onclick = () => toggleHabit(habit.id, !done)
+            }
+            list.appendChild(chip)
+        })
+    }
+
+    async function toggleHabit(habitId, val) {
+        await window.flowAPI.toggleHabitLog(habitId, currentDate, val)
+        const existing = habitLogs.find(l => l.habit_id === habitId)
+        if (existing) existing.completed = val
+        else habitLogs.push({ habit_id: habitId, date: currentDate, completed: val })
+        renderHabits()
+    }
+
+    async function promptAddHabit() {
+        showHabitInput()
+    }
+
+    function showHabitInput() {
+        const row = document.getElementById('habit-add-row')
+        row.style.display = 'flex'
+        document.getElementById('habit-input').focus()
+        document.getElementById('btn-habit-add').style.display = 'none'
+    }
+
+    function hideHabitInput() {
+        document.getElementById('habit-add-row').style.display = 'none'
+        document.getElementById('habit-input').value = ''
+        document.getElementById('btn-habit-add').style.display = ''
+    }
+
+    async function confirmAddHabit() {
+        const name = document.getElementById('habit-input').value.trim()
+        if (!name) return
+        const saved = await window.flowAPI.saveHabit({ name })
+        habits.push(saved)
+        hideHabitInput()
+        renderHabits()
+    }
+
+    async function removeHabit(habitId, e) {
+        e.stopPropagation()
+        if (!confirm('Bu alışkanlığı sil?')) return
+        await window.flowAPI.deleteHabit(habitId)
+        habits    = habits.filter(h => h.id !== habitId)
+        habitLogs = habitLogs.filter(l => l.habit_id !== habitId)
+        renderHabits()
+    }
+
+    function toggleHabitEdit() {
+        habitEditMode = !habitEditMode
+        document.getElementById('btn-habit-settings').classList.toggle('active', habitEditMode)
+        document.getElementById('btn-habit-settings').innerText = habitEditMode ? 'Bitti' : 'Düzenle'
+        renderHabits()
+    }
+
+    // ── Init ───────────────────────────────────────────────
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('date')) currentDate = params.get('date')
+    loadBoard(currentDate)
+    loadHabits()
+</script>
+</body>
+</html>

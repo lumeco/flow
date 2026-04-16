@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumeworks Flow | Kanban</title>
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #0a0a0a;
+            --text-color: #ffffff;
+            --border-color: #333333;
+            --accent-color: #ffffff;
+            --muted-text: #888888;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        header {
+            max-width: 1200px;
+            margin: 0 auto 40px auto;
+            padding: 0 10px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-weight: 800;
+            font-size: 2.5rem;
+            letter-spacing: -1.5px;
+            text-transform: uppercase;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--accent-color);
+            width: 0%;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .constants-bar {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted-text);
+        }
+
+        .constant-item span {
+            color: var(--text-color);
+            font-weight: 600;
+        }
+
+        .kanban-board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .column {
+            background: transparent;
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .column-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 2px solid var(--text-color);
+            margin-bottom: 10px;
+        }
+
+        .column-header h2 {
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .task-list {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-bottom: 100px;
+        }
+
+        .task-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            cursor: grab;
+            transition: transform 0.2s, border-color 0.2s;
+            position: relative;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .task-card:active {
+            cursor: grabbing;
+        }
+
+        .task-card:hover {
+            border-color: var(--accent-color);
+        }
+
+        .task-card.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+
+        .task-content {
+            font-size: 1rem;
+            line-height: 1.4;
+            font-weight: 400;
+        }
+
+        .task-actions {
+            margin-top: 15px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn-delete {
+            background: transparent;
+            border: none;
+            color: #444;
+            cursor: pointer;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-delete:hover {
+            color: #ff0000;
+        }
+
+        .add-task-btn {
+            background: var(--text-color);
+            color: var(--bg-color);
+            border: none;
+            padding: 12px 20px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            letter-spacing: 1px;
+            margin-top: 20px;
+        }
+
+        .add-task-btn:hover {
+            background: #eee;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Modal / Form */
+        #task-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--border-color);
+            color: white;
+            padding: 15px 0;
+            font-size: 1.2rem;
+            outline: none;
+            margin-bottom: 30px;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-color);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; }
+            .kanban-board { grid-template-columns: 1fr; }
+            .column { min-height: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-top">
+            <h1>Flow.</h1>
+            <div id="date-display" style="font-size: 0.8rem; color: var(--muted-text);">15 NİSAN 2026</div>
+        </div>
+        
+        <div class="progress-container">
+            <div id="main-progress" class="progress-bar"></div>
+        </div>
+
+        <div class="constants-bar" style="margin-top: 20px;">
+            <div class="constant-item">KALORİ: <span>&lt; 1400 KCAL</span></div>
+            <div class="constant-item">DİSİPLİN: <span>NOFAP</span></div>
+            <div class="constant-item">ORTAM: <span>ÇALIŞMA ALANI SİLİNECEK</span></div>
+        </div>
+
+        <button class="add-task-btn" onclick="openModal()">+ Yeni Görev</button>
+    </header>
+
+    <main class="kanban-board">
+        <!-- TO DO -->
+        <div class="column" id="todo-col">
+            <div class="column-header">
+                <h2>Yapılacaklar</h2>
+                <span class="count" id="todo-count">0</span>
+            </div>
+            <div class="task-list" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <!-- Tasks injected here -->
+            </div>
+        </div>
+
+        <!-- IN PROGRESS -->
+        <div class="column" id="doing-col">
+            <div class="column-header">
+                <h2>Devam Eden</h2>
+                <span class="count" id="doing-count">0</span>
+            </div>
+            <div class="task-list" id="doing" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <!-- Tasks injected here -->
+            </div>
+        </div>
+
+        <!-- DONE -->
+        <div class="column" id="done-col">
+            <div class="column-header">
+                <h2>Tamamlanan</h2>
+                <span class="count" id="done-count">0</span>
+            </div>
+            <div class="task-list" id="done" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <!-- Tasks injected here -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for new tasks -->
+    <div id="task-modal">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 20px; font-weight: 600; text-transform: uppercase; font-size: 0.9rem;">Yeni Görev Ekle</h2>
+            <input type="text" id="task-input" placeholder="Ne yapacaksın?" autofocus>
+            <div class="modal-buttons">
+                <button class="add-task-btn" onclick="addTask()">Ekle</button>
+                <button class="add-task-btn" style="background: transparent; color: white; border: 1px solid #333;" onclick="closeModal()">İptal</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initial Task List from Prompt
+        const defaultTasks = [
+            { id: '1', content: 'Duş', status: 'todo' },
+            { id: '2', content: 'Yürüyüş', status: 'todo' },
+            { id: '3', content: 'Spor', status: 'todo' },
+            { id: '4', content: '20 DM', status: 'todo' },
+            { id: '5', content: '1 Konsept Çalışma', status: 'todo' },
+            { id: '6', content: 'Konsept Çalışma Tanıtımı İnsta', status: 'todo' },
+            { id: '7', content: 'Postlara Like', status: 'todo' },
+            { id: '8', content: 'Yemek', status: 'todo' },
+            { id: '9', content: 'Fatsecret kalori girişi', status: 'todo' },
+            { id: '10', content: 'Lumeworks site form fix', status: 'todo' },
+            { id: '11', content: 'Lumeworks Projelerimiz kısmı', status: 'todo' },
+            { id: '12', content: 'Duş 2', status: 'todo' },
+            { id: '13', content: '10 DM', status: 'todo' },
+            { id: '14', content: 'Kısa Fizibilite & Gün Değerlendirmesi', status: 'todo' },
+            { id: '15', content: '15 Yeni İşletme bulma', status: 'todo' }
+        ];
+
+        let tasks = JSON.parse(localStorage.getItem('ayberk_tasks')) || defaultTasks;
+
+        function saveTasks() {
+            localStorage.setItem('ayberk_tasks', JSON.stringify(tasks));
+            render();
+        }
+
+        function render() {
+            const columns = {
+                todo: document.getElementById('todo'),
+                doing: document.getElementById('doing'),
+                done: document.getElementById('done')
+            };
+
+            // Clear columns
+            Object.values(columns).forEach(col => col.innerHTML = '');
+
+            let doneCount = 0;
+
+            tasks.forEach(task => {
+                const card = document.createElement('div');
+                card.className = 'task-card';
+                card.draggable = true;
+                card.id = `task-${task.id}`;
+                card.ondragstart = drag;
+                
+                card.innerHTML = `
+                    <div class="task-content">${task.content}</div>
+                    <div class="task-actions">
+                        <button class="btn-delete" onclick="deleteTask('${task.id}')">Sil</button>
+                    </div>
+                `;
+
+                columns[task.status].appendChild(card);
+                if (task.status === 'done') doneCount++;
+            });
+
+            // Update Counts
+            document.getElementById('todo-count').innerText = tasks.filter(t => t.status === 'todo').length;
+            document.getElementById('doing-count').innerText = tasks.filter(t => t.status === 'doing').length;
+            document.getElementById('done-count').innerText = doneCount;
+
+            // Update Progress Bar
+            const total = tasks.length;
+            const percentage = total === 0 ? 0 : (doneCount / total) * 100;
+            document.getElementById('main-progress').style.width = `${percentage}%`;
+
+            updateDate();
+        }
+
+        function updateDate() {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('date-display').innerText = new Date().toLocaleDateString('tr-TR', options).toUpperCase();
+        }
+
+        // Drag & Drop
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+            ev.target.classList.add('dragging');
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            const id = ev.dataTransfer.getData("text").replace('task-', '');
+            const newStatus = ev.currentTarget.id;
+            
+            const taskIndex = tasks.findIndex(t => t.id === id);
+            if (taskIndex !== -1) {
+                tasks[taskIndex].status = newStatus;
+                saveTasks();
+            }
+            
+            const draggedElement = document.getElementById(`task-${id}`);
+            if(draggedElement) draggedElement.classList.remove('dragging');
+        }
+
+        // Task CRUD
+        function openModal() {
+            document.getElementById('task-modal').style.display = 'flex';
+            document.getElementById('task-input').focus();
+        }
+
+        function closeModal() {
+            document.getElementById('task-modal').style.display = 'none';
+            document.getElementById('task-input').value = '';
+        }
+
+        function addTask() {
+            const input = document.getElementById('task-input');
+            if (!input.value.trim()) return;
+
+            const newTask = {
+                id: Date.now().toString(),
+                content: input.value.trim(),
+                status: 'todo'
+            };
+
+            tasks.push(newTask);
+            saveTasks();
+            closeModal();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            saveTasks();
+        }
+
+        // Modal close on overlay click
+        window.onclick = function(event) {
+            const modal = document.getElementById('task-modal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        // Initial Render
+        render();
+
+        // PWA Service Worker Registration (Basic)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Inline SW or separate file could be here
+                console.log('Lumeworks PWA Ready');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "name": "flow",
+  "version": "1.0.0",
+  "description": "Lumeworks Flow — Personal Kanban & Productivity Tracker",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "obfuscate": "javascript-obfuscator main.js --output main.js --compact true --string-array true --rotate-string-array true --self-defending true && javascript-obfuscator src/db.js --output src/db.js --compact true --string-array true --rotate-string-array true --self-defending true && javascript-obfuscator preload.js --output preload.js --compact true --string-array true --rotate-string-array true --self-defending true",
+    "release": "npm run obfuscate && electron-builder --win",
+    "build": "electron-builder --win"
+  },
+  "build": {
+    "appId": "co.lumeworks.flow",
+    "productName": "Flow",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**",
+      "renderer/**"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  }
+}

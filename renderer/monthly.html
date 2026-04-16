@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flow — Aylık</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="shared.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        .month-nav {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .month-nav button {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--muted-text);
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .month-nav button:hover {
+            color: var(--text-color);
+            border-color: var(--text-color);
+        }
+
+        #month-label {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            text-transform: uppercase;
+            min-width: 200px;
+        }
+
+        .section-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--muted-text);
+            margin-bottom: 16px;
+        }
+
+        /* ── Summary cards ── */
+        .summary-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+
+        /* ── Weekly bar chart ── */
+        .chart-section { margin-bottom: 40px; }
+
+        .chart-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            height: 240px;
+            position: relative;
+        }
+
+        /* ── Monthly mini calendar ── */
+        .mini-calendar-section { margin-bottom: 40px; }
+
+        .mini-cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+
+        .mini-cal-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        .mini-cal-header span {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            color: var(--muted-text);
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        .mini-cal-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: var(--muted-text);
+            border: 1px solid transparent;
+            cursor: pointer;
+            position: relative;
+            transition: border-color 0.15s;
+        }
+
+        .mini-cal-day.has-data {
+            color: var(--text-color);
+            border-color: #222;
+        }
+
+        .mini-cal-day.has-data:hover { border-color: var(--text-color); }
+
+        .mini-cal-day .day-bg {
+            position: absolute;
+            inset: 0;
+            opacity: 0.15;
+        }
+
+        .mini-cal-day.level-1 .day-bg { background: #2d6a2d; opacity: 0.2; }
+        .mini-cal-day.level-2 .day-bg { background: #5aab5a; opacity: 0.3; }
+        .mini-cal-day.level-3 .day-bg { background: #aaffaa; opacity: 0.3; }
+        .mini-cal-day.level-4 .day-bg { background: #ffffff; opacity: 0.15; }
+
+        .mini-cal-day .day-num {
+            position: relative;
+            z-index: 1;
+        }
+
+        .mini-cal-day.empty { cursor: default; }
+
+        @media (max-width: 900px) {
+            .summary-row { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="top-nav">
+    <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
+    <div class="nav-links">
+        <a class="nav-link" href="index.html">Board</a>
+        <a class="nav-link" href="dashboard.html">Dashboard</a>
+        <a class="nav-link active" href="monthly.html">Aylık</a>
+    </div>
+    <div class="win-controls">
+        <button class="win-btn" onclick="window.flowAPI.windowMinimize()" title="Küçült">&#8212;</button>
+        <button class="win-btn" onclick="window.flowAPI.windowMaximize()" title="Büyüt">&#9633;</button>
+        <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" title="Kapat">&#10005;</button>
+    </div>
+</nav>
+
+<div class="page-content">
+
+    <!-- ── Month Navigation ── -->
+    <div class="month-nav">
+        <button id="prev-month">‹</button>
+        <div id="month-label">—</div>
+        <button id="next-month">›</button>
+    </div>
+
+    <!-- ── Summary ── -->
+    <div class="section-title">Ay Özeti</div>
+    <div class="summary-row">
+        <div class="stat-card">
+            <div class="stat-label">Toplam Görev</div>
+            <div class="stat-value" id="stat-total">—</div>
+            <div class="stat-sub" id="stat-completed-sub">— tamamlandı</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Ortalama Skor</div>
+            <div class="stat-value" id="stat-avg">—</div>
+            <div class="stat-sub">aylık ortalama</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">En İyi Gün</div>
+            <div class="stat-value" id="stat-best-score">—</div>
+            <div class="stat-sub" id="stat-best-date">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">En Zor Gün</div>
+            <div class="stat-value" id="stat-worst-score">—</div>
+            <div class="stat-sub" id="stat-worst-date">—</div>
+        </div>
+    </div>
+
+    <!-- ── Weekly Breakdown Chart ── -->
+    <div class="chart-section">
+        <div class="section-title">Haftalık Dağılım</div>
+        <div class="chart-container">
+            <canvas id="weekly-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- ── Mini Calendar ── -->
+    <div class="mini-calendar-section">
+        <div class="section-title" id="mini-cal-title">Gün Gün</div>
+        <div class="mini-cal-header">
+            <span>Pzt</span><span>Sal</span><span>Çar</span>
+            <span>Per</span><span>Cum</span><span>Cmt</span><span>Paz</span>
+        </div>
+        <div class="mini-cal-grid" id="mini-cal-grid"></div>
+    </div>
+
+</div>
+
+<script>
+    const MONTHS_TR = [
+        'Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',
+        'Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'
+    ]
+
+    let weeklyChart = null
+    const now = new Date()
+    let viewYear  = now.getFullYear()
+    let viewMonth = now.getMonth() + 1  // 1-based
+
+    async function loadMonth() {
+        const data = await window.flowAPI.getMonthlyStats(viewYear, viewMonth)
+        updateLabel()
+        renderSummary(data)
+        renderWeeklyChart(data.weeklyBreakdown)
+        renderMiniCalendar(data.dailyScores, viewYear, viewMonth)
+    }
+
+    function updateLabel() {
+        document.getElementById('month-label').innerText =
+            `${MONTHS_TR[viewMonth - 1]} ${viewYear}`
+        // Disable next if current month
+        const nextDisabled = viewYear >= now.getFullYear() && viewMonth >= now.getMonth() + 1
+        document.getElementById('next-month').disabled = nextDisabled
+        document.getElementById('next-month').style.opacity = nextDisabled ? '0.3' : '1'
+    }
+
+    function renderSummary(data) {
+        document.getElementById('stat-total').innerText = data.totalTasks || '—'
+        document.getElementById('stat-completed-sub').innerText = `${data.completedTasks} tamamlandı`
+        document.getElementById('stat-avg').innerText = data.avgScore ? `%${data.avgScore}` : '—'
+
+        if (data.bestDay) {
+            document.getElementById('stat-best-score').innerText = `%${data.bestDay.score}`
+            document.getElementById('stat-best-date').innerText  = formatDate(data.bestDay.date)
+        } else {
+            document.getElementById('stat-best-score').innerText = '—'
+            document.getElementById('stat-best-date').innerText  = 'veri yok'
+        }
+
+        if (data.worstDay) {
+            document.getElementById('stat-worst-score').innerText = `%${data.worstDay.score}`
+            document.getElementById('stat-worst-date').innerText  = formatDate(data.worstDay.date)
+        } else {
+            document.getElementById('stat-worst-score').innerText = '—'
+            document.getElementById('stat-worst-date').innerText  = 'veri yok'
+        }
+    }
+
+    function renderWeeklyChart(breakdown) {
+        const ctx = document.getElementById('weekly-chart').getContext('2d')
+        if (weeklyChart) weeklyChart.destroy()
+
+        if (!breakdown || breakdown.length === 0) {
+            ctx.fillStyle = '#333'
+            ctx.font = '12px Inter'
+            ctx.fillText('Bu ay için veri yok.', 16, 50)
+            return
+        }
+
+        weeklyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: breakdown.map(w => `${w.week}. Hafta`),
+                datasets: [{
+                    label: 'Ort. Tamamlama %',
+                    data: breakdown.map(w => w.avgScore),
+                    backgroundColor: breakdown.map(w =>
+                        w.avgScore >= 90 ? 'rgba(255,255,255,0.9)' :
+                        w.avgScore >= 60 ? 'rgba(255,255,255,0.5)' :
+                        'rgba(255,255,255,0.15)'
+                    ),
+                    borderWidth: 0,
+                    borderRadius: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        ticks: { color: '#555', font: { size: 11 } },
+                        grid: { display: false }
+                    },
+                    y: {
+                        min: 0, max: 100,
+                        ticks: { color: '#555', font: { size: 11 }, callback: v => `${v}%` },
+                        grid: { color: '#1a1a1a' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#111',
+                        borderColor: '#333',
+                        borderWidth: 1,
+                        callbacks: { label: ctx => ` %${ctx.parsed.y}` }
+                    }
+                }
+            }
+        })
+    }
+
+    function renderMiniCalendar(dailyScores, year, month) {
+        const scoreMap = {}
+        dailyScores.forEach(d => scoreMap[d.date] = d.score)
+
+        const grid = document.getElementById('mini-cal-grid')
+        grid.innerHTML = ''
+
+        const firstDay = new Date(year, month - 1, 1)
+        // Monday-based offset (0=Mon ... 6=Sun)
+        let startOffset = firstDay.getDay() - 1
+        if (startOffset < 0) startOffset = 6
+
+        const daysInMonth = new Date(year, month, 0).getDate()
+
+        // Empty cells before first day
+        for (let i = 0; i < startOffset; i++) {
+            const empty = document.createElement('div')
+            empty.className = 'mini-cal-day empty'
+            grid.appendChild(empty)
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const pad = String(month).padStart(2, '0')
+            const dayPad = String(day).padStart(2, '0')
+            const dateStr = `${year}-${pad}-${dayPad}`
+            const score = scoreMap[dateStr] ?? null
+
+            const cell = document.createElement('div')
+            cell.className = 'mini-cal-day'
+
+            const bg = document.createElement('div')
+            bg.className = 'day-bg'
+
+            const num = document.createElement('div')
+            num.className = 'day-num'
+            num.innerText = day
+
+            if (score !== null) {
+                cell.classList.add('has-data')
+                const level = score >= 90 ? 4 : score >= 60 ? 3 : score >= 30 ? 2 : score > 0 ? 1 : 0
+                if (level > 0) cell.classList.add(`level-${level}`)
+                cell.title = `%${score}`
+                cell.onclick = () => {
+                    window.location.href = `index.html?date=${dateStr}`
+                }
+            }
+
+            cell.appendChild(bg)
+            cell.appendChild(num)
+            grid.appendChild(cell)
+        }
+    }
+
+    function formatDate(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00')
+        return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })
+    }
+
+    // ── Navigation ──────────────────────────────────────────
+    document.getElementById('prev-month').onclick = () => {
+        viewMonth--
+        if (viewMonth < 1) { viewMonth = 12; viewYear-- }
+        loadMonth()
+    }
+
+    document.getElementById('next-month').onclick = () => {
+        const nextDisabled = viewYear >= now.getFullYear() && viewMonth >= now.getMonth() + 1
+        if (nextDisabled) return
+        viewMonth++
+        if (viewMonth > 12) { viewMonth = 1; viewYear++ }
+        loadMonth()
+    }
+
+    loadMonth()
+</script>
+</body>
+</html>

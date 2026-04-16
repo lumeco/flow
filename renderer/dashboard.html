@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flow — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="shared.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        .section-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--muted-text);
+            margin-bottom: 16px;
+        }
+
+        /* ── Stats row ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+
+        /* ── Calendar ── */
+        .calendar-section { margin-bottom: 40px; }
+
+        .calendar-grid {
+            display: flex;
+            gap: 3px;
+            flex-wrap: wrap;
+        }
+
+        .cal-week {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .cal-day {
+            width: 13px;
+            height: 13px;
+            background: #111;
+            cursor: pointer;
+            transition: transform 0.1s;
+            position: relative;
+        }
+
+        .cal-day:hover { transform: scale(1.4); z-index: 10; }
+
+        .cal-day[data-score="0"]  { background: #111; }
+        .cal-day[data-level="1"] { background: #1a3a1a; }
+        .cal-day[data-level="2"] { background: #2d6a2d; }
+        .cal-day[data-level="3"] { background: #5aab5a; }
+        .cal-day[data-level="4"] { background: #ffffff; }
+
+        .cal-day:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #222;
+            color: #fff;
+            font-size: 0.6rem;
+            white-space: nowrap;
+            padding: 3px 6px;
+            pointer-events: none;
+            border: 1px solid #444;
+            z-index: 20;
+        }
+
+        .cal-month-labels {
+            display: flex;
+            gap: 3px;
+            margin-bottom: 4px;
+            font-size: 0.6rem;
+            color: var(--muted-text);
+            text-transform: uppercase;
+        }
+
+        /* ── Trend chart ── */
+        .trend-section { margin-bottom: 40px; }
+
+        .chart-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            height: 240px;
+            position: relative;
+        }
+
+        /* ── Best day card ── */
+        .best-day-date {
+            font-size: 0.8rem;
+            color: var(--muted-text);
+            margin-top: 4px;
+        }
+
+        @media (max-width: 900px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="top-nav">
+    <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
+    <div class="nav-links">
+        <a class="nav-link" href="index.html">Board</a>
+        <a class="nav-link active" href="dashboard.html">Dashboard</a>
+        <a class="nav-link" href="monthly.html">Aylık</a>
+    </div>
+    <div class="win-controls">
+        <button class="win-btn" onclick="window.flowAPI.windowMinimize()" title="Küçült">&#8212;</button>
+        <button class="win-btn" onclick="window.flowAPI.windowMaximize()" title="Büyüt">&#9633;</button>
+        <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" title="Kapat">&#10005;</button>
+    </div>
+</nav>
+
+<div class="page-content">
+
+    <!-- ── Stats Row ── -->
+    <div class="stats-row" id="stats-row">
+        <div class="stat-card">
+            <div class="stat-label">Mevcut Streak</div>
+            <div class="stat-value" id="stat-streak-current">—</div>
+            <div class="stat-sub">gün üst üste</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">En İyi Streak</div>
+            <div class="stat-value" id="stat-streak-best">—</div>
+            <div class="stat-sub">gün rekor</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">En İyi Gün</div>
+            <div class="stat-value" id="stat-bestday-score">—</div>
+            <div class="stat-sub best-day-date" id="stat-bestday-date">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Toplam Aktif Gün</div>
+            <div class="stat-value" id="stat-total-days">—</div>
+            <div class="stat-sub">kayıt var</div>
+        </div>
+    </div>
+
+    <!-- ── Trend Chart ── -->
+    <div class="trend-section">
+        <div class="section-title">Son 30 Gün — Tamamlama Oranı</div>
+        <div class="chart-container">
+            <canvas id="trend-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- ── Calendar ── -->
+    <div class="calendar-section">
+        <div class="section-title">Son 365 Gün</div>
+        <div id="calendar-grid" class="calendar-grid"></div>
+    </div>
+
+</div>
+
+<script>
+    let trendChart = null
+
+    async function loadAll() {
+        const [streak, bestDay, calData, trendData] = await Promise.all([
+            window.flowAPI.getStreak(),
+            window.flowAPI.getBestDay(),
+            window.flowAPI.getCalendarData(),
+            window.flowAPI.getTrend(30)
+        ])
+
+        renderStats(streak, bestDay, calData)
+        renderTrend(trendData)
+        renderCalendar(calData)
+    }
+
+    function renderStats(streak, bestDay, calData) {
+        document.getElementById('stat-streak-current').innerText = streak.current
+        document.getElementById('stat-streak-best').innerText    = streak.best
+
+        if (bestDay) {
+            document.getElementById('stat-bestday-score').innerText = `%${bestDay.score}`
+            document.getElementById('stat-bestday-date').innerText  = formatDate(bestDay.date)
+        }
+
+        document.getElementById('stat-total-days').innerText = calData.length
+    }
+
+    function renderTrend(data) {
+        const ctx = document.getElementById('trend-chart').getContext('2d')
+        if (trendChart) trendChart.destroy()
+
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => formatDateShort(d.date)),
+                datasets: [{
+                    label: 'Tamamlama %',
+                    data: data.map(d => d.completionRate),
+                    borderColor: '#ffffff',
+                    backgroundColor: 'rgba(255,255,255,0.04)',
+                    borderWidth: 1.5,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#ffffff',
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        ticks: { color: '#555', font: { size: 10 }, maxTicksLimit: 10 },
+                        grid: { color: '#1a1a1a' }
+                    },
+                    y: {
+                        min: 0, max: 100,
+                        ticks: { color: '#555', font: { size: 10 }, callback: v => `${v}%` },
+                        grid: { color: '#1a1a1a' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#111',
+                        borderColor: '#333',
+                        borderWidth: 1,
+                        callbacks: { label: ctx => ` %${ctx.parsed.y}` }
+                    }
+                }
+            }
+        })
+    }
+
+    function renderCalendar(calData) {
+        const scoreMap = {}
+        calData.forEach(d => scoreMap[d.date] = d.score)
+
+        const today = new Date()
+        const start = new Date(today)
+        start.setDate(start.getDate() - 364)
+        // Align to Sunday
+        start.setDate(start.getDate() - start.getDay())
+
+        const container = document.getElementById('calendar-grid')
+        container.innerHTML = ''
+
+        let current = new Date(start)
+        while (current <= today) {
+            const week = document.createElement('div')
+            week.className = 'cal-week'
+
+            for (let d = 0; d < 7; d++) {
+                const dateStr = current.toISOString().slice(0, 10)
+                const score = scoreMap[dateStr] ?? null
+                const cell = document.createElement('div')
+                cell.className = 'cal-day'
+
+                if (score === null) {
+                    cell.setAttribute('data-score', '0')
+                } else {
+                    cell.setAttribute('data-score', score)
+                    const level = score >= 90 ? 4 : score >= 60 ? 3 : score >= 30 ? 2 : score > 0 ? 1 : 0
+                    if (level > 0) cell.setAttribute('data-level', level)
+                }
+
+                cell.setAttribute('data-tooltip', score !== null
+                    ? `${formatDate(dateStr)} — %${score}`
+                    : formatDate(dateStr))
+
+                cell.onclick = () => {
+                    window.location.href = `index.html?date=${dateStr}`
+                }
+
+                week.appendChild(cell)
+                current.setDate(current.getDate() + 1)
+            }
+
+            container.appendChild(week)
+        }
+    }
+
+    function formatDate(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00')
+        return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })
+    }
+
+    function formatDateShort(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00')
+        return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
+    }
+
+    loadAll()
+</script>
+</body>
+</html>
