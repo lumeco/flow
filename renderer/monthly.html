@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="shared.css">
+    <script src="i18n.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         .month-nav {
@@ -144,14 +145,17 @@
 <nav class="top-nav">
     <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
     <div class="nav-links">
-        <a class="nav-link" href="index.html">Board</a>
-        <a class="nav-link" href="dashboard.html">Dashboard</a>
-        <a class="nav-link active" href="monthly.html">Aylık</a>
+        <a class="nav-link" href="index.html" id="nav-board">Board</a>
+        <a class="nav-link" href="dashboard.html" id="nav-dashboard">Dashboard</a>
+        <a class="nav-link active" href="monthly.html" id="nav-monthly">Aylık</a>
     </div>
-    <div class="win-controls">
-        <button class="win-btn" onclick="window.flowAPI.windowMinimize()" title="Küçült">&#8212;</button>
-        <button class="win-btn" onclick="window.flowAPI.windowMaximize()" title="Büyüt">&#9633;</button>
-        <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" title="Kapat">&#10005;</button>
+    <div style="display:flex;align-items:center;-webkit-app-region:no-drag;">
+        <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
+        <div class="win-controls">
+            <button class="win-btn" onclick="window.flowAPI.windowMinimize()" id="win-min">&#8212;</button>
+            <button class="win-btn" onclick="window.flowAPI.windowMaximize()" id="win-max">&#9633;</button>
+            <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" id="win-close">&#10005;</button>
+        </div>
     </div>
 </nav>
 
@@ -165,25 +169,25 @@
     </div>
 
     <!-- ── Summary ── -->
-    <div class="section-title">Ay Özeti</div>
+    <div class="section-title" id="lbl-month-summary">Ay Özeti</div>
     <div class="summary-row">
         <div class="stat-card">
-            <div class="stat-label">Toplam Görev</div>
+            <div class="stat-label" id="lbl-total-tasks">Toplam Görev</div>
             <div class="stat-value" id="stat-total">—</div>
             <div class="stat-sub" id="stat-completed-sub">— tamamlandı</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">Ortalama Skor</div>
+            <div class="stat-label" id="lbl-avg-score">Ortalama Skor</div>
             <div class="stat-value" id="stat-avg">—</div>
-            <div class="stat-sub">aylık ortalama</div>
+            <div class="stat-sub" id="lbl-avg-sub">aylık ortalama</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">En İyi Gün</div>
+            <div class="stat-label" id="lbl-best-day-m">En İyi Gün</div>
             <div class="stat-value" id="stat-best-score">—</div>
             <div class="stat-sub" id="stat-best-date">—</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">En Zor Gün</div>
+            <div class="stat-label" id="lbl-worst-day">En Zor Gün</div>
             <div class="stat-value" id="stat-worst-score">—</div>
             <div class="stat-sub" id="stat-worst-date">—</div>
         </div>
@@ -191,7 +195,7 @@
 
     <!-- ── Weekly Breakdown Chart ── -->
     <div class="chart-section">
-        <div class="section-title">Haftalık Dağılım</div>
+        <div class="section-title" id="lbl-weekly">Haftalık Dağılım</div>
         <div class="chart-container">
             <canvas id="weekly-chart"></canvas>
         </div>
@@ -200,7 +204,7 @@
     <!-- ── Mini Calendar ── -->
     <div class="mini-calendar-section">
         <div class="section-title" id="mini-cal-title">Gün Gün</div>
-        <div class="mini-cal-header">
+        <div class="mini-cal-header" id="mini-cal-header">
             <span>Pzt</span><span>Sal</span><span>Çar</span>
             <span>Per</span><span>Cum</span><span>Cmt</span><span>Paz</span>
         </div>
@@ -210,15 +214,35 @@
 </div>
 
 <script>
-    const MONTHS_TR = [
-        'Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',
-        'Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'
-    ]
+    // ── i18n init ────────────────────────────────────────
+    function applyI18n() {
+        document.getElementById('nav-board').textContent       = t('nav_board')
+        document.getElementById('nav-dashboard').textContent   = t('nav_dashboard')
+        document.getElementById('nav-monthly').textContent     = t('nav_monthly')
+        document.getElementById('lang-toggle').textContent     = t('lang_switch')
+        document.getElementById('win-min').title               = t('win_minimize')
+        document.getElementById('win-max').title               = t('win_maximize')
+        document.getElementById('win-close').title             = t('win_close')
+        document.getElementById('lbl-month-summary').textContent = t('month_summary')
+        document.getElementById('lbl-total-tasks').textContent   = t('stat_total_tasks')
+        document.getElementById('lbl-avg-score').textContent     = t('stat_avg_score')
+        document.getElementById('lbl-avg-sub').textContent       = t('stat_avg_sub')
+        document.getElementById('lbl-best-day-m').textContent    = t('stat_best_day_m')
+        document.getElementById('lbl-worst-day').textContent     = t('stat_worst_day')
+        document.getElementById('lbl-weekly').textContent        = t('weekly_breakdown')
+        document.getElementById('mini-cal-title').textContent    = t('day_by_day')
+        // day labels
+        const days = t('days_short')
+        const hdr  = document.getElementById('mini-cal-header')
+        if (hdr) hdr.querySelectorAll('span').forEach((el, i) => { el.textContent = days[i] })
+    }
+
+    const MONTHS_LOCALIZED = () => t('months')
 
     let weeklyChart = null
     const now = new Date()
     let viewYear  = now.getFullYear()
-    let viewMonth = now.getMonth() + 1  // 1-based
+    let viewMonth = now.getMonth() + 1
 
     async function loadMonth() {
         const data = await window.flowAPI.getMonthlyStats(viewYear, viewMonth)
@@ -230,8 +254,7 @@
 
     function updateLabel() {
         document.getElementById('month-label').innerText =
-            `${MONTHS_TR[viewMonth - 1]} ${viewYear}`
-        // Disable next if current month
+            `${MONTHS_LOCALIZED()[viewMonth - 1]} ${viewYear}`
         const nextDisabled = viewYear >= now.getFullYear() && viewMonth >= now.getMonth() + 1
         document.getElementById('next-month').disabled = nextDisabled
         document.getElementById('next-month').style.opacity = nextDisabled ? '0.3' : '1'
@@ -239,7 +262,7 @@
 
     function renderSummary(data) {
         document.getElementById('stat-total').innerText = data.totalTasks || '—'
-        document.getElementById('stat-completed-sub').innerText = `${data.completedTasks} tamamlandı`
+        document.getElementById('stat-completed-sub').innerText = `${data.completedTasks} ${t('completed_sub_monthly')}`
         document.getElementById('stat-avg').innerText = data.avgScore ? `%${data.avgScore}` : '—'
 
         if (data.bestDay) {
@@ -247,7 +270,7 @@
             document.getElementById('stat-best-date').innerText  = formatDate(data.bestDay.date)
         } else {
             document.getElementById('stat-best-score').innerText = '—'
-            document.getElementById('stat-best-date').innerText  = 'veri yok'
+            document.getElementById('stat-best-date').innerText  = t('stat_no_data')
         }
 
         if (data.worstDay) {
@@ -255,7 +278,7 @@
             document.getElementById('stat-worst-date').innerText  = formatDate(data.worstDay.date)
         } else {
             document.getElementById('stat-worst-score').innerText = '—'
-            document.getElementById('stat-worst-date').innerText  = 'veri yok'
+            document.getElementById('stat-worst-date').innerText  = t('stat_no_data')
         }
     }
 
@@ -266,16 +289,16 @@
         if (!breakdown || breakdown.length === 0) {
             ctx.fillStyle = '#333'
             ctx.font = '12px Inter'
-            ctx.fillText('Bu ay için veri yok.', 16, 50)
+            ctx.fillText(t('no_month_data'), 16, 50)
             return
         }
 
         weeklyChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: breakdown.map(w => `${w.week}. Hafta`),
+                labels: breakdown.map(w => `${w.week}. ${t('week_label')}`),
                 datasets: [{
-                    label: 'Ort. Tamamlama %',
+                    label: t('chart_label_completion'),
                     data: breakdown.map(w => w.avgScore),
                     backgroundColor: breakdown.map(w =>
                         w.avgScore >= 90 ? 'rgba(255,255,255,0.9)' :
@@ -368,7 +391,7 @@
 
     function formatDate(dateStr) {
         const d = new Date(dateStr + 'T00:00:00')
-        return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })
+        return d.toLocaleDateString(t('date_locale'), { day: 'numeric', month: 'long' })
     }
 
     // ── Navigation ──────────────────────────────────────────
@@ -386,6 +409,7 @@
         loadMonth()
     }
 
+    applyI18n()
     loadMonth()
 </script>
 </body>

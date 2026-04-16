@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="shared.css">
+    <script src="i18n.js"></script>
     <style>
         .board-header {
             display: flex;
@@ -171,6 +172,21 @@
             gap: 12px;
         }
 
+        .btn-search-bar {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--muted-text);
+            padding: 0 12px;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            height: 36px;
+            transition: color 0.15s, border-color 0.15s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-search-bar:hover { color: var(--text-color); border-color: var(--text-color); }
+
         /* Habits panel */
         .habits-panel {
             margin-top: 20px;
@@ -316,31 +332,38 @@
 <nav class="top-nav">
     <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
     <div class="nav-links">
-        <a class="nav-link active" href="index.html">Board</a>
-        <a class="nav-link" href="dashboard.html">Dashboard</a>
-        <a class="nav-link" href="monthly.html">Aylık</a>
+        <a class="nav-link active" href="index.html" id="nav-board">Board</a>
+        <a class="nav-link" href="dashboard.html" id="nav-dashboard">Dashboard</a>
+        <a class="nav-link" href="monthly.html" id="nav-monthly">Aylık</a>
     </div>
-    <div class="win-controls">
-        <button class="win-btn" onclick="window.flowAPI.windowMinimize()" title="Küçült">&#8212;</button>
-        <button class="win-btn" onclick="window.flowAPI.windowMaximize()" title="Büyüt">&#9633;</button>
-        <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" title="Kapat">&#10005;</button>
+    <div style="display:flex;align-items:center;-webkit-app-region:no-drag;">
+        <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
+        <div class="win-controls">
+            <button class="win-btn" onclick="window.flowAPI.windowMinimize()" id="win-min">&#8212;</button>
+            <button class="win-btn" onclick="window.flowAPI.windowMaximize()" id="win-max">&#9633;</button>
+            <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" id="win-close">&#10005;</button>
+        </div>
     </div>
 </nav>
 
 <div class="page-content">
     <div class="board-header">
-        <div style="display:flex;align-items:center;gap:16px;">
-            <span class="board-title">Board</span>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span class="board-title" id="board-title">BOARD</span>
+            <span class="future-badge" id="future-badge">PLAN</span>
             <div class="streak-badge" id="streak-badge" title="">
                 <span class="streak-fire">&#128293;</span>
                 <span class="streak-count" id="streak-count">0</span>
-                <span class="streak-suffix">gün</span>
+                <span class="streak-suffix" id="streak-suffix">gün</span>
             </div>
         </div>
-        <div class="date-nav">
-            <button id="prev-day" title="Önceki gün">‹</button>
-            <div id="date-display">—</div>
-            <button id="next-day" title="Sonraki gün">›</button>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <button class="btn-search-bar" onclick="openSearch()" id="btn-search-bar">⌕ Ara</button>
+            <div class="date-nav">
+                <button id="prev-day" title="Önceki gün">‹</button>
+                <div id="date-display">—</div>
+                <button id="next-day" title="Sonraki gün">›</button>
+            </div>
         </div>
     </div>
 
@@ -366,14 +389,14 @@
     </div>
 
     <div class="bottom-bar">
-        <button class="btn-primary" onclick="openModal()">+ Yeni Görev</button>
+        <button class="btn-primary" onclick="openModal()" id="btn-new-task">+ Yeni Görev</button>
         <span id="progress-text" style="font-size:0.75rem;color:var(--muted-text);"></span>
     </div>
 
     <main class="kanban-board">
         <div class="column">
             <div class="column-header">
-                <h2>Yapılacaklar</h2>
+                <h2 id="col-todo-label">Yapılacaklar</h2>
                 <span class="count" id="todo-count">0</span>
             </div>
             <div class="task-list" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
@@ -381,7 +404,7 @@
 
         <div class="column">
             <div class="column-header">
-                <h2>Devam Eden</h2>
+                <h2 id="col-doing-label">Devam Eden</h2>
                 <span class="count" id="doing-count">0</span>
             </div>
             <div class="task-list" id="doing" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
@@ -389,7 +412,7 @@
 
         <div class="column">
             <div class="column-header">
-                <h2>Tamamlanan</h2>
+                <h2 id="col-done-label">Tamamlanan</h2>
                 <span class="count" id="done-count">0</span>
             </div>
             <div class="task-list" id="done" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
@@ -399,23 +422,73 @@
 
 <div id="task-modal">
     <div class="modal-content">
-        <h2>Yeni Görev Ekle</h2>
+        <h2 id="modal-title">Yeni Görev Ekle</h2>
         <input type="text" id="task-input" placeholder="Ne yapacaksın?">
+        <div class="modal-field">
+            <label class="modal-field-label" id="modal-deadline-label">Son Tarih (opsiyonel)</label>
+            <input type="date" id="task-deadline" class="modal-deadline-input">
+        </div>
+        <textarea id="task-note" class="modal-note-input" placeholder="Not ekle (opsiyonel)..." rows="3"></textarea>
         <div class="modal-buttons">
-            <button class="btn-primary" onclick="addTask()">Ekle</button>
-            <button class="btn-ghost" onclick="closeModal()">İptal</button>
+            <button class="btn-primary" id="modal-save-btn" onclick="saveTaskFromModal()">Ekle</button>
+            <button class="btn-ghost" onclick="closeModal()" id="modal-cancel-btn">İptal</button>
         </div>
     </div>
 </div>
 
+<!-- Search Overlay -->
+<div id="search-overlay">
+    <div class="search-box">
+        <input type="text" class="search-box-input" id="search-input" placeholder="Görev ara…">
+        <div id="search-results"></div>
+        <div class="search-hint" id="search-hint">Esc ile kapat · Ctrl+K</div>
+    </div>
+</div>
+
 <script>
+    // ── i18n init ─────────────────────────────────────────
+    function applyI18n() {
+        document.getElementById('nav-board').textContent       = t('nav_board')
+        document.getElementById('nav-dashboard').textContent   = t('nav_dashboard')
+        document.getElementById('nav-monthly').textContent     = t('nav_monthly')
+        document.getElementById('lang-toggle').textContent     = t('lang_switch')
+        document.getElementById('win-min').title               = t('win_minimize')
+        document.getElementById('win-max').title               = t('win_maximize')
+        document.getElementById('win-close').title             = t('win_close')
+        document.getElementById('board-title').textContent     = t('board_title')
+        document.getElementById('future-badge').textContent    = t('plan_badge')
+        document.getElementById('btn-new-task').textContent    = t('new_task_btn')
+        document.getElementById('btn-search-bar').textContent  = '⌕ ' + t('search_btn')
+        document.getElementById('col-todo-label').textContent  = t('col_todo')
+        document.getElementById('col-doing-label').textContent = t('col_doing')
+        document.getElementById('col-done-label').textContent  = t('col_done')
+        document.getElementById('modal-deadline-label').textContent = t('modal_deadline_label')
+        document.getElementById('task-input').placeholder      = t('modal_task_ph')
+        document.getElementById('task-note').placeholder       = t('modal_note_ph')
+        document.getElementById('modal-cancel-btn').textContent= t('btn_cancel')
+        document.getElementById('prev-day').title              = t('prev_day')
+        document.getElementById('next-day').title              = t('next_day')
+        document.getElementById('search-input').placeholder    = t('search_ph')
+        document.getElementById('search-hint').textContent     = t('search_hint')
+        document.getElementById('streak-suffix').textContent   = t('streak_suffix')
+        document.getElementById('habits-label') && (document.getElementById('habits-label').textContent = t('habits_title'))
+        const hEdit = document.getElementById('btn-habit-settings')
+        if (hEdit && !hEdit.classList.contains('active')) hEdit.textContent = t('habits_edit')
+        const hAdd = document.getElementById('btn-habit-add')
+        if (hAdd) hAdd.textContent = t('habits_add')
+        const hInp = document.getElementById('habit-input')
+        if (hInp) hInp.placeholder = t('habit_ph')
+    }
+
     // ── State ──────────────────────────────────────────────
-    const MIN_DATE = '2026-04-14'
-    let currentDate = todayStr()
-    let currentBoard = null
-    let tasks = []
-    let draggedId = null
-    let isEditing = false
+    const MIN_DATE    = '2026-04-14'
+    const MAX_FUTURE  = 365   // days ahead allowed for planning
+    let currentDate   = todayStr()
+    let currentBoard  = null
+    let tasks         = []
+    let draggedId     = null
+    let isEditing     = false
+    let editingTaskId = null
 
     // ── Date helpers ───────────────────────────────────────
     function todayStr() {
@@ -430,14 +503,19 @@
 
     function formatDateDisplay(dateStr) {
         const d = new Date(dateStr + 'T00:00:00')
-        return d.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase()
+        return d.toLocaleDateString(t('date_locale'), { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase()
+    }
+
+    function formatDeadline(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00')
+        return d.toLocaleDateString(t('date_locale'), { day: 'numeric', month: 'short' })
     }
 
     // ── Board load ─────────────────────────────────────────
     async function loadBoard(date) {
-        currentDate = date
+        currentDate  = date
         currentBoard = await window.flowAPI.getOrCreateBoard(date)
-        tasks = await window.flowAPI.getTasks(currentBoard.id)
+        tasks        = await window.flowAPI.getTasks(currentBoard.id)
         render()
         loadStreak()
     }
@@ -450,12 +528,11 @@
         count.innerText = streak.current
         if (streak.current > 0) {
             badge.classList.add('active')
-            badge.title = streak.current >= 7
-                ? `${streak.current} günlük muhteşem seri! 🔥 En iyi: ${streak.best} gün`
-                : `${streak.current} günlük seri! En iyi: ${streak.best} gün`
+            const tip = streak.current >= 7 ? t('streak_great') : t('streak_normal')
+            badge.title = `${streak.current} ${tip} ${streak.best} ${t('streak_best_unit')}`
         } else {
             badge.classList.remove('active')
-            badge.title = `En iyi serin: ${streak.best} gün`
+            badge.title = `${t('streak_none')} ${streak.best} ${t('streak_best_unit')}`
         }
     }
 
@@ -467,6 +544,7 @@
             done:  document.getElementById('done')
         }
         Object.values(cols).forEach(c => c.innerHTML = '')
+        const today = todayStr()
 
         tasks.forEach(task => {
             const card = document.createElement('div')
@@ -474,35 +552,61 @@
             card.draggable = true
             card.dataset.id = task.id
             card.ondragstart = drag
+
+            const hasDeadline = !!task.deadline
+            const isOverdue   = hasDeadline && task.deadline < today && task.status !== 'done'
+            const hasNote     = !!(task.note && task.note.trim())
+
+            const deadlineHtml = hasDeadline
+                ? `<div class="task-deadline${isOverdue ? ' overdue' : ''}">
+                       ${isOverdue ? t('overdue_label') : '📅 ' + formatDeadline(task.deadline)}
+                   </div>`
+                : ''
+
+            const noteHtml = hasNote
+                ? `<details class="task-note-section">
+                       <summary>${t('note_toggle_show')}</summary>
+                       <div class="task-note-body">${escapeHtml(task.note)}</div>
+                   </details>`
+                : ''
+
             card.innerHTML = `
                 <div class="task-content" ondblclick="startEdit(${task.id})">${escapeHtml(task.content)}</div>
+                ${deadlineHtml}
+                ${noteHtml}
                 <div class="task-actions">
-                    <button class="btn-order" onclick="reorderCard(${task.id},'up')" title="Yukarı">&#8593;</button>
-                    <button class="btn-order" onclick="reorderCard(${task.id},'down')" title="Aşağı">&#8595;</button>
-                    <button class="btn-edit" onclick="startEdit(${task.id})" title="Düzenle">&#9998;</button>
-                    <button class="btn-delete" onclick="deleteTask(${task.id})">Sil</button>
+                    <button class="btn-order" onclick="reorderCard(${task.id},'up')" title="↑">&#8593;</button>
+                    <button class="btn-order" onclick="reorderCard(${task.id},'down')" title="↓">&#8595;</button>
+                    <button class="btn-edit" onclick="openEditModal(${task.id})" title="${t('btn_edit')}">&#9998;</button>
+                    <button class="btn-delete" onclick="deleteTask(${task.id})">${t('btn_delete')}</button>
                 </div>`
             cols[task.status]?.appendChild(card)
         })
 
-        const done  = tasks.filter(t => t.status === 'done').length
+        const done  = tasks.filter(t2 => t2.status === 'done').length
         const total = tasks.length
-        document.getElementById('todo-count').innerText  = tasks.filter(t => t.status === 'todo').length
-        document.getElementById('doing-count').innerText = tasks.filter(t => t.status === 'doing').length
+        document.getElementById('todo-count').innerText  = tasks.filter(t2 => t2.status === 'todo').length
+        document.getElementById('doing-count').innerText = tasks.filter(t2 => t2.status === 'doing').length
         document.getElementById('done-count').innerText  = done
         document.getElementById('main-progress').style.width = total ? `${(done / total) * 100}%` : '0%'
-        document.getElementById('progress-text').innerText = total ? `${done}/${total} tamamlandı` : ''
+        document.getElementById('progress-text').innerText = total
+            ? `${done}/${total} ${t('completed_of')}`
+            : ''
         document.getElementById('date-display').innerText = formatDateDisplay(currentDate)
 
-        // disable next-day button if already today
-        const atToday = currentDate >= todayStr()
-        document.getElementById('next-day').disabled = atToday
-        document.getElementById('next-day').style.opacity = atToday ? '0.3' : '1'
+        // Future planning: allow up to MAX_FUTURE days ahead
+        const maxDate = offsetDate(todayStr(), MAX_FUTURE)
+        const atMax   = currentDate >= maxDate
+        document.getElementById('next-day').disabled     = atMax
+        document.getElementById('next-day').style.opacity = atMax ? '0.3' : '1'
 
-        // disable prev-day button at min date
         const atMin = offsetDate(currentDate, -1) < MIN_DATE
-        document.getElementById('prev-day').disabled = atMin
+        document.getElementById('prev-day').disabled     = atMin
         document.getElementById('prev-day').style.opacity = atMin ? '0.3' : '1'
+
+        // Future badge
+        const isFuture = currentDate > todayStr()
+        document.getElementById('future-badge').classList.toggle('visible', isFuture)
     }
 
     // ── Drag & Drop ────────────────────────────────────────
@@ -510,23 +614,17 @@
         ev.preventDefault()
         ev.currentTarget.classList.add('drag-over')
     }
-
-    function dragLeave(ev) {
-        ev.currentTarget.classList.remove('drag-over')
-    }
-
+    function dragLeave(ev) { ev.currentTarget.classList.remove('drag-over') }
     function drag(ev) {
         draggedId = ev.currentTarget.dataset.id
         ev.currentTarget.classList.add('dragging')
     }
-
     async function drop(ev) {
         ev.preventDefault()
         ev.currentTarget.classList.remove('drag-over')
         if (!draggedId) return
-
         const newStatus = ev.currentTarget.id
-        const task = tasks.find(t => t.id == draggedId)
+        const task = tasks.find(t2 => t2.id == draggedId)
         if (task && task.status !== newStatus) {
             task.status = newStatus
             await window.flowAPI.updateTaskStatus(parseInt(draggedId), newStatus)
@@ -534,83 +632,108 @@
         }
         draggedId = null
     }
-
     document.addEventListener('dragend', () => {
         document.querySelectorAll('.task-card.dragging').forEach(c => c.classList.remove('dragging'))
     })
 
-    // ── Task CRUD ──────────────────────────────────────────
+    // ── Modal (Add / Edit) ─────────────────────────────────
     function openModal() {
-        document.getElementById('task-modal').style.display = 'flex'
+        editingTaskId = null
+        document.getElementById('modal-title').textContent      = t('modal_title_add')
+        document.getElementById('modal-save-btn').textContent   = t('btn_add')
+        document.getElementById('task-input').value             = ''
+        document.getElementById('task-deadline').value          = ''
+        document.getElementById('task-note').value              = ''
+        document.getElementById('task-modal').style.display     = 'flex'
+        document.getElementById('task-input').focus()
+    }
+
+    function openEditModal(taskId) {
+        const task = tasks.find(t2 => t2.id === taskId)
+        if (!task) return
+        editingTaskId = taskId
+        document.getElementById('modal-title').textContent      = t('modal_title_edit')
+        document.getElementById('modal-save-btn').textContent   = t('btn_save')
+        document.getElementById('task-input').value             = task.content
+        document.getElementById('task-deadline').value          = task.deadline || ''
+        document.getElementById('task-note').value              = task.note || ''
+        document.getElementById('task-modal').style.display     = 'flex'
         document.getElementById('task-input').focus()
     }
 
     function closeModal() {
         document.getElementById('task-modal').style.display = 'none'
-        document.getElementById('task-input').value = ''
+        document.getElementById('task-input').value         = ''
+        document.getElementById('task-deadline').value      = ''
+        document.getElementById('task-note').value          = ''
+        editingTaskId = null
     }
 
-    async function addTask() {
-        const input = document.getElementById('task-input')
-        const content = input.value.trim()
+    async function saveTaskFromModal() {
+        const input    = document.getElementById('task-input')
+        const content  = input.value.trim()
         if (!content) return
+        const deadline = document.getElementById('task-deadline').value   || null
+        const note     = document.getElementById('task-note').value.trim() || null
 
-        const saved = await window.flowAPI.saveTask({
-            board_id: currentBoard.id,
-            content,
-            status: 'todo'
-        })
-        tasks.push(saved)
+        if (editingTaskId) {
+            await window.flowAPI.updateTaskFull(editingTaskId, { content, deadline, note })
+            const task = tasks.find(t2 => t2.id === editingTaskId)
+            if (task) { task.content = content; task.deadline = deadline; task.note = note }
+        } else {
+            const saved = await window.flowAPI.saveTask({
+                board_id: currentBoard.id,
+                content, status: 'todo', deadline, note
+            })
+            tasks.push(saved)
+        }
         render()
         closeModal()
     }
 
     async function deleteTask(id) {
         await window.flowAPI.deleteTask(id)
-        tasks = tasks.filter(t => t.id !== id)
+        tasks = tasks.filter(t2 => t2.id !== id)
         render()
     }
 
-    // ── Reorder card ───────────────────────────────────────
     async function reorderCard(taskId, direction) {
         await window.flowAPI.reorderTask(taskId, direction)
         tasks = await window.flowAPI.getTasks(currentBoard.id)
         render()
     }
 
-    // ── Inline edit ───────────────────────────────────────
+    // ── Inline content-only edit (double-click) ────────────
     function startEdit(taskId) {
         if (isEditing) return
         isEditing = true
         const card = document.querySelector(`.task-card[data-id="${taskId}"]`)
         if (!card) { isEditing = false; return }
         const contentEl = card.querySelector('.task-content')
-        const task = tasks.find(t => t.id === taskId)
+        const task = tasks.find(t2 => t2.id === taskId)
         if (!task) { isEditing = false; return }
 
         const original = task.content
         contentEl.innerHTML = `<input class="task-edit-input" type="text" value="${escapeAttr(task.content)}">`
-        const input = contentEl.querySelector('input')
-        input.focus(); input.select()
+        const inp = contentEl.querySelector('input')
+        inp.focus(); inp.select()
 
         let done = false
         async function commit() {
             if (done) return; done = true; isEditing = false
-            const val = input.value.trim()
+            const val = inp.value.trim()
             if (val && val !== original) {
                 await window.flowAPI.updateTaskContent(taskId, val)
                 task.content = val
             }
             render()
         }
-        function cancel() {
-            if (done) return; done = true; isEditing = false; render()
-        }
-        input.addEventListener('keydown', e => {
+        function cancel() { if (done) return; done = true; isEditing = false; render() }
+        inp.addEventListener('keydown', e => {
             if (e.key === 'Enter')  { e.preventDefault(); commit() }
             if (e.key === 'Escape') cancel()
         })
-        input.addEventListener('blur', commit)
+        inp.addEventListener('blur', commit)
     }
 
     // ── Date navigation ────────────────────────────────────
@@ -619,37 +742,107 @@
         if (prev >= MIN_DATE) { loadBoard(prev); loadHabits() }
     }
     document.getElementById('next-day').onclick = () => {
-        const next = offsetDate(currentDate, 1)
-        if (next <= todayStr()) { loadBoard(next); loadHabits() }
+        const next    = offsetDate(currentDate, 1)
+        const maxDate = offsetDate(todayStr(), MAX_FUTURE)
+        if (next <= maxDate) { loadBoard(next); loadHabits() }
     }
 
-    // ── Modal overlay close ────────────────────────────────
+    // ── Global keyboard shortcuts ─────────────────────────
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault()
+            searchOpen ? closeSearch() : openSearch()
+        }
+        if (e.key === 'Escape') {
+            if (searchOpen) { closeSearch(); return }
+            if (document.getElementById('task-modal').style.display === 'flex') closeModal()
+        }
+    })
+
+    // ── Modal overlay click ────────────────────────────────
     document.getElementById('task-modal').addEventListener('click', e => {
         if (e.target === e.currentTarget) closeModal()
     })
-
-    // ── Enter key in modal ─────────────────────────────────
     document.getElementById('task-input').addEventListener('keydown', e => {
-        if (e.key === 'Enter') addTask()
+        if (e.key === 'Enter') saveTaskFromModal()
         if (e.key === 'Escape') closeModal()
     })
-
     document.getElementById('habit-input').addEventListener('keydown', e => {
         if (e.key === 'Enter')  confirmAddHabit()
         if (e.key === 'Escape') hideHabitInput()
     })
 
+    // ── Search ─────────────────────────────────────────────
+    let searchOpen    = false
+    let searchTimeout = null
+
+    function openSearch() {
+        searchOpen = true
+        document.getElementById('search-overlay').classList.add('visible')
+        document.getElementById('search-input').value = ''
+        document.getElementById('search-results').innerHTML = ''
+        document.getElementById('search-input').focus()
+    }
+
+    function closeSearch() {
+        searchOpen = false
+        document.getElementById('search-overlay').classList.remove('visible')
+    }
+
+    document.getElementById('search-overlay').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeSearch()
+    })
+
+    document.getElementById('search-input').addEventListener('input', e => {
+        clearTimeout(searchTimeout)
+        searchTimeout = setTimeout(() => doSearch(e.target.value.trim()), 220)
+    })
+
+    async function doSearch(query) {
+        const resultsEl = document.getElementById('search-results')
+        if (!query) { resultsEl.innerHTML = ''; return }
+        const data = await window.flowAPI.searchTasks(query)
+        if (data.length === 0) {
+            resultsEl.innerHTML = `<div class="search-no-results">${t('search_no_results')}</div>`
+            return
+        }
+        const today = todayStr()
+        resultsEl.innerHTML = data.map(task => {
+            const isOv      = task.deadline && task.deadline < today && task.status !== 'done'
+            const statusCls = task.status === 'done' ? 'done' : task.status === 'doing' ? 'doing' : 'todo'
+            const statusIco = task.status === 'done' ? '✓' : task.status === 'doing' ? '●' : '○'
+            const dateStr   = task.boardDate ? formatDateDisplay(task.boardDate) : ''
+            const dlBadge   = isOv
+                ? `<span class="sr-overdue">${t('overdue_label')}</span>`
+                : (task.deadline ? `📅 ${formatDeadline(task.deadline)}` : '')
+            return `<div class="search-result-item" onclick="navigateToDate('${task.boardDate}')">
+                        <span class="sr-status ${statusCls}">${statusIco}</span>
+                        <div class="sr-content">
+                            <div class="sr-text">${escapeHtml(task.content)}</div>
+                            <div class="sr-meta">${dateStr} ${dlBadge}</div>
+                        </div>
+                    </div>`
+        }).join('')
+    }
+
+    function navigateToDate(date) {
+        closeSearch()
+        if (date) { loadBoard(date); loadHabits() }
+    }
+
     // ── XSS guards ────────────────────────────────────────
     function escapeHtml(str) {
+        if (!str) return ''
         return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
     }
     function escapeAttr(str) {
+        if (!str) return ''
         return str.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     }
 
     // ── Habits ─────────────────────────────────────────────
-    let habits     = []
-    let habitLogs  = []
+    let habits       = []
+    let habitLogs    = []
     let habitEditMode = false
 
     async function loadHabits() {
@@ -665,7 +858,7 @@
         panel.classList.toggle('edit-mode', habitEditMode)
 
         if (habits.length === 0) {
-            list.innerHTML = `<span style="font-size:0.75rem;color:#444;">Henüz alışkanlık yok. + Ekle butonuna bas.</span>`
+            list.innerHTML = `<span style="font-size:0.75rem;color:#444;">${t('no_habits')}</span>`
             return
         }
 
@@ -678,8 +871,7 @@
             chip.innerHTML = `
                 <span class="habit-check">${done ? '✓' : '○'}</span>
                 <span>${escapeHtml(habit.name)}</span>
-                <button class="habit-del" title="Sil" onclick="removeHabit(${habit.id}, event)">✕</button>`
-
+                <button class="habit-del" title="${t('habit_del_title')}" onclick="removeHabit(${habit.id}, event)">✕</button>`
             if (!habitEditMode) {
                 chip.onclick = () => toggleHabit(habit.id, !done)
             }
@@ -693,10 +885,6 @@
         if (existing) existing.completed = val
         else habitLogs.push({ habit_id: habitId, date: currentDate, completed: val })
         renderHabits()
-    }
-
-    async function promptAddHabit() {
-        showHabitInput()
     }
 
     function showHabitInput() {
@@ -723,7 +911,7 @@
 
     async function removeHabit(habitId, e) {
         e.stopPropagation()
-        if (!confirm('Bu alışkanlığı sil?')) return
+        if (!confirm(t('habit_del_confirm'))) return
         await window.flowAPI.deleteHabit(habitId)
         habits    = habits.filter(h => h.id !== habitId)
         habitLogs = habitLogs.filter(l => l.habit_id !== habitId)
@@ -732,16 +920,30 @@
 
     function toggleHabitEdit() {
         habitEditMode = !habitEditMode
-        document.getElementById('btn-habit-settings').classList.toggle('active', habitEditMode)
-        document.getElementById('btn-habit-settings').innerText = habitEditMode ? 'Bitti' : 'Düzenle'
+        const btn = document.getElementById('btn-habit-settings')
+        btn.classList.toggle('active', habitEditMode)
+        btn.innerText = habitEditMode ? t('habits_edit_done') : t('habits_edit')
         renderHabits()
     }
 
+    // ── Overdue notification on startup ───────────────────
+    async function checkOverdue() {
+        try {
+            const overdue = await window.flowAPI.getOverdueTasks()
+            if (overdue && overdue.length > 0) {
+                const body = t('notif_overdue_body')(overdue.length)
+                await window.flowAPI.sendNotification(t('notif_overdue_title'), body)
+            }
+        } catch {}
+    }
+
     // ── Init ───────────────────────────────────────────────
+    applyI18n()
     const params = new URLSearchParams(window.location.search)
     if (params.get('date')) currentDate = params.get('date')
     loadBoard(currentDate)
     loadHabits()
+    checkOverdue()
 </script>
 </body>
 </html>

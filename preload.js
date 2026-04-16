@@ -40,6 +40,18 @@ contextBridge.exposeInMainWorld('flowAPI', {
   updateTaskContent: (taskId, content) =>
     ipcRenderer.invoke('task:updateContent', taskId, content),
 
+  updateTaskFull: (taskId, fields) =>
+    ipcRenderer.invoke('task:updateFull', taskId, fields),
+
+  getOverdueTasks: () =>
+    ipcRenderer.invoke('task:getOverdue'),
+
+  searchTasks: (query) =>
+    ipcRenderer.invoke('task:search', query),
+
+  sendNotification: (title, body) =>
+    ipcRenderer.invoke('notification:send', title, body),
+
   windowMinimize: () => ipcRenderer.send('window:minimize'),
   windowMaximize: () => ipcRenderer.send('window:maximize'),
   windowClose:    () => ipcRenderer.send('window:close'),

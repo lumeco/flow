@@ -47,7 +47,14 @@ function saveTask(task) {
   if (task.id) {
     const idx = data.tasks.findIndex(t => t.id === task.id)
     if (idx !== -1) {
-      data.tasks[idx] = { ...data.tasks[idx], content: task.content, status: task.status, order_index: task.order_index ?? 0 }
+      data.tasks[idx] = {
+        ...data.tasks[idx],
+        content: task.content,
+        status: task.status,
+        order_index: task.order_index ?? 0,
+        ...(task.deadline !== undefined ? { deadline: task.deadline } : {}),
+        ...(task.note      !== undefined ? { note:     task.note     } : {})
+      }
       save(data)
       return data.tasks[idx]
     }
@@ -60,6 +67,8 @@ function saveTask(task) {
     content: task.content,
     status: task.status ?? 'todo',
     order_index: maxOrder + 1,
+    deadline: task.deadline ?? null,
+    note: task.note ?? null,
     created_at: new Date().toISOString(),
     completed_at: null
   }
@@ -307,6 +316,48 @@ function updateTaskContent(taskId, content) {
   return task
 }
 
+// ── Update Task Full (content + deadline + note) ──────────────
+function updateTaskFull(taskId, fields) {
+  const data = load()
+  const task = data.tasks.find(t => t.id === taskId)
+  if (task) {
+    if (fields.content  !== undefined) task.content  = fields.content
+    if (fields.deadline !== undefined) task.deadline = fields.deadline
+    if (fields.note     !== undefined) task.note     = fields.note
+    save(data)
+  }
+  return task
+}
+
+// ── Overdue Tasks ─────────────────────────────────────────────
+function getOverdueTasks() {
+  const data = load()
+  const today = todayStr()
+  return data.tasks
+    .filter(t => t.deadline && t.deadline < today && t.status !== 'done')
+    .map(t => {
+      const board = data.boards.find(b => b.id === t.board_id)
+      return { ...t, boardDate: board?.date }
+    })
+}
+
+// ── Search Tasks ──────────────────────────────────────────────
+function searchTasks(query) {
+  const data = load()
+  const q = query.toLowerCase()
+  return data.tasks
+    .filter(t =>
+      t.content.toLowerCase().includes(q) ||
+      (t.note || '').toLowerCase().includes(q)
+    )
+    .map(t => {
+      const board = data.boards.find(b => b.id === t.board_id)
+      return { ...t, boardDate: board?.date }
+    })
+    .sort((a, b) => (b.boardDate || '').localeCompare(a.boardDate || ''))
+    .slice(0, 60)
+}
+
 // ── Date helpers ─────────────────────────────────────────────
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -327,6 +378,6 @@ function daysBetween(a, b) {
 module.exports = {
   getOrCreateBoard, getTasks, saveTask, deleteTask, updateTaskStatus,
   getStreak, getBestDay, getCalendarData, getTrend, getMonthlyStats,
-  reorderTask, updateTaskContent,
+  reorderTask, updateTaskContent, updateTaskFull, getOverdueTasks, searchTasks,
   getHabits, saveHabit, deleteHabit, getHabitLogs, toggleHabitLog
 }

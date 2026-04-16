@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, Notification } = require('electron')
 const path = require('path')
 const db = require('./src/db')
 
@@ -83,6 +83,26 @@ ipcMain.handle('task:reorder', (_, taskId, direction) => {
 
 ipcMain.handle('task:updateContent', (_, taskId, content) => {
   return db.updateTaskContent(taskId, content)
+})
+
+ipcMain.handle('task:updateFull', (_, taskId, fields) => {
+  return db.updateTaskFull(taskId, fields)
+})
+
+ipcMain.handle('task:getOverdue', () => {
+  return db.getOverdueTasks()
+})
+
+ipcMain.handle('task:search', (_, query) => {
+  return db.searchTasks(query)
+})
+
+// ── Notifications ────────────────────────────────────────────
+ipcMain.handle('notification:send', (_, title, body) => {
+  if (Notification.isSupported()) {
+    new Notification({ title, body }).show()
+  }
+  return { ok: true }
 })
 
 // ── Window controls ────────────────────────────────────────

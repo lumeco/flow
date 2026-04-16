@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="shared.css">
+    <script src="i18n.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         .section-title {
@@ -112,14 +113,17 @@
 <nav class="top-nav">
     <div class="nav-brand"><span class="brand-sup">Lume</span><span class="brand-flow">flow.</span></div>
     <div class="nav-links">
-        <a class="nav-link" href="index.html">Board</a>
-        <a class="nav-link active" href="dashboard.html">Dashboard</a>
-        <a class="nav-link" href="monthly.html">Aylık</a>
+        <a class="nav-link" href="index.html" id="nav-board">Board</a>
+        <a class="nav-link active" href="dashboard.html" id="nav-dashboard">Dashboard</a>
+        <a class="nav-link" href="monthly.html" id="nav-monthly">Aylık</a>
     </div>
-    <div class="win-controls">
-        <button class="win-btn" onclick="window.flowAPI.windowMinimize()" title="Küçült">&#8212;</button>
-        <button class="win-btn" onclick="window.flowAPI.windowMaximize()" title="Büyüt">&#9633;</button>
-        <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" title="Kapat">&#10005;</button>
+    <div style="display:flex;align-items:center;-webkit-app-region:no-drag;">
+        <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
+        <div class="win-controls">
+            <button class="win-btn" onclick="window.flowAPI.windowMinimize()" id="win-min">&#8212;</button>
+            <button class="win-btn" onclick="window.flowAPI.windowMaximize()" id="win-max">&#9633;</button>
+            <button class="win-btn win-close" onclick="window.flowAPI.windowClose()" id="win-close">&#10005;</button>
+        </div>
     </div>
 </nav>
 
@@ -128,30 +132,30 @@
     <!-- ── Stats Row ── -->
     <div class="stats-row" id="stats-row">
         <div class="stat-card">
-            <div class="stat-label">Mevcut Streak</div>
+            <div class="stat-label" id="lbl-streak-current">Mevcut Streak</div>
             <div class="stat-value" id="stat-streak-current">—</div>
-            <div class="stat-sub">gün üst üste</div>
+            <div class="stat-sub" id="sub-streak">gün üst üste</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">En İyi Streak</div>
+            <div class="stat-label" id="lbl-streak-best">En İyi Streak</div>
             <div class="stat-value" id="stat-streak-best">—</div>
-            <div class="stat-sub">gün rekor</div>
+            <div class="stat-sub" id="sub-record">gün rekor</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">En İyi Gün</div>
+            <div class="stat-label" id="lbl-best-day">En İyi Gün</div>
             <div class="stat-value" id="stat-bestday-score">—</div>
             <div class="stat-sub best-day-date" id="stat-bestday-date">—</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">Toplam Aktif Gün</div>
+            <div class="stat-label" id="lbl-total-days">Toplam Aktif Gün</div>
             <div class="stat-value" id="stat-total-days">—</div>
-            <div class="stat-sub">kayıt var</div>
+            <div class="stat-sub" id="sub-records">kayıt var</div>
         </div>
     </div>
 
     <!-- ── Trend Chart ── -->
     <div class="trend-section">
-        <div class="section-title">Son 30 Gün — Tamamlama Oranı</div>
+        <div class="section-title" id="trend-title">Son 30 Gün — Tamamlama Oranı</div>
         <div class="chart-container">
             <canvas id="trend-chart"></canvas>
         </div>
@@ -159,13 +163,33 @@
 
     <!-- ── Calendar ── -->
     <div class="calendar-section">
-        <div class="section-title">Son 365 Gün</div>
+        <div class="section-title" id="calendar-title">Son 365 Gün</div>
         <div id="calendar-grid" class="calendar-grid"></div>
     </div>
 
 </div>
 
 <script>
+    // ── i18n init ─────────────────────────────────────────
+    function applyI18n() {
+        document.getElementById('nav-board').textContent       = t('nav_board')
+        document.getElementById('nav-dashboard').textContent   = t('nav_dashboard')
+        document.getElementById('nav-monthly').textContent     = t('nav_monthly')
+        document.getElementById('lang-toggle').textContent     = t('lang_switch')
+        document.getElementById('win-min').title               = t('win_minimize')
+        document.getElementById('win-max').title               = t('win_maximize')
+        document.getElementById('win-close').title             = t('win_close')
+        document.getElementById('lbl-streak-current').textContent = t('stat_streak_current')
+        document.getElementById('lbl-streak-best').textContent    = t('stat_streak_best')
+        document.getElementById('lbl-best-day').textContent       = t('stat_best_day')
+        document.getElementById('lbl-total-days').textContent     = t('stat_total_days')
+        document.getElementById('sub-streak').textContent         = t('stat_sub_streak')
+        document.getElementById('sub-record').textContent         = t('stat_sub_record')
+        document.getElementById('sub-records').textContent        = t('stat_sub_days')
+        document.getElementById('trend-title').textContent        = t('trend_section_title')
+        document.getElementById('calendar-title').textContent     = t('calendar_section_title')
+    }
+
     let trendChart = null
 
     async function loadAll() {
@@ -202,7 +226,7 @@
             data: {
                 labels: data.map(d => formatDateShort(d.date)),
                 datasets: [{
-                    label: 'Tamamlama %',
+                    label: t('chart_label_completion_line'),
                     data: data.map(d => d.completionRate),
                     borderColor: '#ffffff',
                     backgroundColor: 'rgba(255,255,255,0.04)',
@@ -290,14 +314,15 @@
 
     function formatDate(dateStr) {
         const d = new Date(dateStr + 'T00:00:00')
-        return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })
+        return d.toLocaleDateString(t('date_locale'), { day: 'numeric', month: 'short', year: 'numeric' })
     }
 
     function formatDateShort(dateStr) {
         const d = new Date(dateStr + 'T00:00:00')
-        return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
+        return d.toLocaleDateString(t('date_locale'), { day: 'numeric', month: 'short' })
     }
 
+    applyI18n()
     loadAll()
 </script>
 </body>
